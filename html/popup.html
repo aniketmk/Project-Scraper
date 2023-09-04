@@ -1,68 +1,206 @@
-<!--
-    Some notes:
-    This is the HTML for the popup window of the Chrome extension.
--->
 <!DOCTYPE html>
-<html>
-  <link rel="stylesheet" href="../css/bootstrap.min.css">
-  <script src="../js/bootstrap.min.js"></script>
+<html lang="en">
   <head>
-    <title>Grey-box Web Scraper</title>
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="../css/bootstrap.min.css">
-    <link rel="stylesheet" href="../css/styles.css">
+    <!-- Meta Tags -->
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+
+    <!-- Page Title -->
+    <title>Grey-Box</title>
+
+    <!-- Bootstrap CSS (Local) -->
+    <link rel="stylesheet" href="../css/bootstrap.min.css" />
+
+    <!-- Bootstrap Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="../css/styles.css" />
   </head>
-  <body class="py-2 px-3 bg-light">
-    <h1 class="text-center">Grey-Box<br> Web Downloader</h1>
-    <form id="form" class="row row-cols-lg-auto g-3 align-items-center">
-      <div class="col-12 input-group-sm">
-        <label for="url-input">Starting URL </label>
-        <div class="tooltip2">&#x1F6C8;
-          <span class="tooltiptext2">Enter the URL/Link to the website here</span>
-        </div>
-        <input type="url" required name="url" disabled class="form-control" id="url-input" placeholder="Enter URL">
-      </div>
-      
-      <div class="col-12 input-group-sm">
-        <label class="d-inline-block" for="depth-input">Depth</label>
-        <div class="tooltip2">&#x1F6C8;
-          <span class="tooltiptext2">Each time a new page is visited it is one level deeper than the last page</span>
-        </div>
-        <input class="d-inline-block" type="number" name="depth" min="0" max="10" class="form-control" id="depth-input" placeholder="0-10" value="1">
-      </div>
+  <body class="py-2 px-3">
+    <!-- Header Section -->
+    <header class="text-white text-center bg-secondary rounded py-2 px-1 mb-3">
+      <h3>Web Scraper by Grey-Box</h3>
+    </header>
 
-      <form id="option-form" class="row row-cols-lg-auto g-3 align-items-center" action="#">
-
-          <div class="col-12">
-            <div class="form-check">
-              <label class="form-check-label" for="omit-imgs">
-                <input class="form-check-input" name="omit-imgs" type="checkbox" id="omit-imgs">
-                Omit Images
-              </label>
-              <div class="tooltip2">&#x1F6C8;
-                <span class="tooltiptext2">Select this if you wish to download webpages without images.</span>
-              </div>
-            </div>   
+    <!-- Main Content Section -->
+    <main class="container">
+      <!-- Submit Button Section -->
+      <section class="d-flex justify-content-center mb-3">
+        <div id="submitButton" class="text-center">
+          <div class="sphere3D">
+            <img src="../images/grey-image_2.png" alt="Play Icon" />
           </div>
+          <span id="output" class="artistic"></span>
+        </div>
+      </section>
 
-        <div class="alert alert-danger" role="alert" id="link-alert" style="font-size:12px" hidden>
-          This page has a lot of links, we recommend setting a low depth for a faster download.
+      <!-- Toast Notification Section -->
+      <section
+        class="toast mb-3"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+        id="myToast"
+      >
+        <div class="toast-header">
+          <strong class="pl-4 me-auto">Alert</strong>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="toast"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="toast-body">
+          The program is in the download process.<br />Please wait until it
+          finishes!
+        </div>
+      </section>
+
+      <!-- Advanced Options Section -->
+      <section>
+        <!-- Button to Toggle Advanced Options -->
+        <div class="d-flex justify-content-left">
+          <button
+            class="d-block text-decoration-none btn-toggle-advanced-options"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#collapseWidthExample"
+            aria-expanded="false"
+            aria-controls="collapseWidthExample"
+          >
+            <span class="fs-5 me-1">Advanced Options</span
+            ><i class="bi bi-caret-down"></i>
+          </button>
         </div>
 
-      </form>
+        <!-- Advanced Options Controls -->
+        <div class="collapse" id="collapseWidthExample">
+          <div class="advanced-options-controls">
+            <!-- Code for Advanced Options goes here -->
+            <div class="input-group-sm p-1">
+              <label class="form-check-label" for="omit-images-checkbox">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="omit-imgs"
+                  name="omit_images"
+                />
+                Exclude Images
+              </label>
+              <i
+                class="bi bi-patch-question text-dark pe-auto"
+                data-bs-placement="top"
+                title="Select this if you don't want to download images from the website."
+              ></i>
+            </div>
+            <div class="input-group-sm p-1">
+              <label class="form-check-label" for="focus-mode-checkbox">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="focus-mode"
+                  name="focus-mode"
+                />
+                Focus Mode
+              </label>
+              <i
+                class="bi bi-patch-question text-dark pe-auto"
+                data-bs-placement="top"
+                title="Get text-based content."
+              ></i>
+            </div>
+            <div class="">
+              <div class="input-group-sm p-1">
+                <label class="d-inline-block" for="depth-input">Depth</label>
+                <input
+                  class="d-inline-block"
+                  type="number"
+                  name="depth"
+                  min="0"
+                  max="10"
+                  class="form-control"
+                  id="depth-input"
+                  placeholder="0-10"
+                  value="1"
+                />
+                <i
+                  class="bi bi-patch-question text-dark pe-auto"
+                  data-bs-placement="top"
+                  title="This feature is still being worked on therefore you might encounter minor bugs."
+                ></i>
+              </div>
+            </div>
+            <!-- Alert for depth -->
+            <!-- <div class="alert alert-warning mt-1" role="alert" id="alert-depth" hidden="True">
+            Increasing the depth will take long time to download.<br> We recommend setting a small depth (less than 2) for a faster download.
+          </div> -->
+            <div class="input-group-sm p-1">
+              <label class="form-check-label" for="omit-images-checkbox">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="omit-imgs"
+                  name="omit_images"
+                />
+                Restrict Domain
+              </label>
+              <i
+                class="bi bi-patch-question text-dark pe-auto"
+                data-bs-placement="top"
+                title="Select this if you want domain to get restricted."
+              ></i>
+            </div>
+            <div class="input-group-sm p-1">
+              <label class="form-check-label" for="omit-images-checkbox">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="multiple-urls"
+                  name="omit_images"
+                  disabled
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapseWidthExample1"
+                />
+                Download Multiple URLs
+              </label>
+              <i
+                class="bi bi-patch-question text-dark pe-auto"
+                data-bs-placement="top"
+                title="This feature is still in development, feel free to reach out with any suggestions."
+              ></i>
+              <div class="collapse" id="collapseWidthExample1">
+                <div class="mt-1">
+                  <textarea
+                    id="story"
+                    name="story"
+                    placeholder="Enter URLs by putting each URL on a new line...."
+                    rows="7"
+                    cols="34"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
 
-      <div class="col-12 mb-2">
-        <button id="submit-btn" type="submit" class="btn btn-primary btn-sm">Download</button>
-        <a class="btn btn-success btn-sm" href="tutorial.html" target="_blank">Tutorial</a>
-      </div>
+    <!-- Footer Section -->
 
-    </form>
-
-    <button class="btn btn-sm btn-secondary" id="go-to-options">Go to options</button>
-
+    <!-- JS Scripts -->
+    <script src="../js/bootstrap.min.js"></script>
+    <script src="../js/popup.js"></script>
+    <script src="../js/tooltip.js"></script>
     <script src="../js/jszip.js"></script>
     <script src="../js/jszip-utils.js"></script>
     <script src="../js/jquery-3.6.0.min.js"></script>
-    <script src="../js/popup.js"></script>
   </body>
 </html>
