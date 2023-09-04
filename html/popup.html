@@ -12,7 +12,7 @@
     <title>Grey-Box</title>
 
     <!-- Bootstrap CSS (Local) -->
-    <link rel="stylesheet" href="../css/bootstrap.min.css" />
+    <link rel="stylesheet" href="../css/bootstrap/bootstrap.min.css" />
 
     <!-- Bootstrap Icons -->
     <link
@@ -33,11 +33,11 @@
     <main class="container">
       <!-- Submit Button Section -->
       <section class="d-flex justify-content-center mb-3">
-        <div id="submitButton" class="text-center">
-          <div class="sphere3D">
-            <img src="../images/grey-image_2.png" alt="Play Icon" />
+        <div id="submit-button" class="text-center">
+          <div class="button-icon">
+            <img src="../images/grey-box-play.png" alt="Play Icon" />
           </div>
-          <span id="output" class="artistic"></span>
+          <span id="button-title" class="button-title"></span>
         </div>
       </section>
 
@@ -47,7 +47,7 @@
         role="alert"
         aria-live="assertive"
         aria-atomic="true"
-        id="myToast"
+        id="toast"
       >
         <div class="toast-header">
           <strong class="pl-4 me-auto">Alert</strong>
@@ -69,12 +69,12 @@
         <!-- Button to Toggle Advanced Options -->
         <div class="d-flex justify-content-left">
           <button
-            class="d-block text-decoration-none btn-toggle-advanced-options"
+            class="d-block text-decoration-none button-toggle-advanced-options"
             type="button"
             data-bs-toggle="collapse"
-            data-bs-target="#collapseWidthExample"
+            data-bs-target="#collapseWidthOptions"
             aria-expanded="false"
-            aria-controls="collapseWidthExample"
+            aria-controls="collapseWidthOptions"
           >
             <span class="fs-5 me-1">Advanced Options</span
             ><i class="bi bi-caret-down"></i>
@@ -82,16 +82,16 @@
         </div>
 
         <!-- Advanced Options Controls -->
-        <div class="collapse" id="collapseWidthExample">
+        <div class="collapse" id="collapseWidthOptions">
           <div class="advanced-options-controls">
-            <!-- Code for Advanced Options goes here -->
+            <!-- Exclude Images Option -->
             <div class="input-group-sm p-1">
-              <label class="form-check-label" for="omit-images-checkbox">
+              <label class="form-check-label" for="exclude-images-checkbox">
                 <input
                   class="form-check-input"
                   type="checkbox"
-                  id="omit-imgs"
-                  name="omit_images"
+                  id="exclude-images-checkbox"
+                  name="exclude-images"
                 />
                 Exclude Images
               </label>
@@ -101,12 +101,13 @@
                 title="Select this if you don't want to download images from the website."
               ></i>
             </div>
+            <!-- Focus Mode Option -->
             <div class="input-group-sm p-1">
               <label class="form-check-label" for="focus-mode-checkbox">
                 <input
                   class="form-check-input"
                   type="checkbox"
-                  id="focus-mode"
+                  id="focus-mode-checkbox"
                   name="focus-mode"
                 />
                 Focus Mode
@@ -114,41 +115,17 @@
               <i
                 class="bi bi-patch-question text-dark pe-auto"
                 data-bs-placement="top"
-                title="Get text-based content."
+                title="Select this if you want to get only text based content."
               ></i>
             </div>
-            <div class="">
-              <div class="input-group-sm p-1">
-                <label class="d-inline-block" for="depth-input">Depth</label>
-                <input
-                  class="d-inline-block"
-                  type="number"
-                  name="depth"
-                  min="0"
-                  max="10"
-                  class="form-control"
-                  id="depth-input"
-                  placeholder="0-10"
-                  value="1"
-                />
-                <i
-                  class="bi bi-patch-question text-dark pe-auto"
-                  data-bs-placement="top"
-                  title="This feature is still being worked on therefore you might encounter minor bugs."
-                ></i>
-              </div>
-            </div>
-            <!-- Alert for depth -->
-            <!-- <div class="alert alert-warning mt-1" role="alert" id="alert-depth" hidden="True">
-            Increasing the depth will take long time to download.<br> We recommend setting a small depth (less than 2) for a faster download.
-          </div> -->
+            <!-- Restrict Domain Option -->
             <div class="input-group-sm p-1">
-              <label class="form-check-label" for="omit-images-checkbox">
+              <label class="form-check-label" for="restrict-domain-checkbox">
                 <input
                   class="form-check-input"
                   type="checkbox"
-                  id="omit-imgs"
-                  name="omit_images"
+                  id="restrict-domain-checkbox"
+                  name="restrict-domain"
                 />
                 Restrict Domain
               </label>
@@ -158,16 +135,20 @@
                 title="Select this if you want domain to get restricted."
               ></i>
             </div>
+            <!-- Download Multiple URLs Option -->
             <div class="input-group-sm p-1">
-              <label class="form-check-label" for="omit-images-checkbox">
+              <label
+                class="form-check-label"
+                for="download-multiple-urls-checkbox"
+              >
                 <input
                   class="form-check-input"
                   type="checkbox"
-                  id="multiple-urls"
-                  name="omit_images"
+                  id="download-multiple-urls-checkbox"
+                  name="download-multiple-urls"
                   disabled
                   data-bs-toggle="collapse"
-                  data-bs-target="#collapseWidthExample1"
+                  data-bs-target="#collapseWidthMultipleURLs"
                 />
                 Download Multiple URLs
               </label>
@@ -176,17 +157,39 @@
                 data-bs-placement="top"
                 title="This feature is still in development, feel free to reach out with any suggestions."
               ></i>
-              <div class="collapse" id="collapseWidthExample1">
+              <div class="collapse" id="collapseWidthMultipleURLs">
                 <div class="mt-1">
                   <textarea
-                    id="story"
-                    name="story"
+                    id="multiple-urls"
+                    name="multiple-urls"
                     placeholder="Enter URLs by putting each URL on a new line...."
                     rows="7"
                     cols="34"
                   ></textarea>
                 </div>
               </div>
+            </div>
+            <!-- Choose Depth Option -->
+            <div class="input-group-sm p-1">
+              <label class="d-inline-block" for="choose-depth-input"
+                >Choose Depth</label
+              >
+              <input
+                class="d-inline-block"
+                type="number"
+                id="choose-depth-input"
+                name="choose-depth"
+                min="0"
+                max="10"
+                class="form-control"
+                placeholder="0-10"
+                disabled
+              />
+              <i
+                class="bi bi-patch-question text-dark pe-auto"
+                data-bs-placement="top"
+                title="This feature is still in development, feel free to reach out with any suggestions."
+              ></i>
             </div>
           </div>
         </div>
@@ -196,11 +199,11 @@
     <!-- Footer Section -->
 
     <!-- JS Scripts -->
-    <script src="../js/bootstrap.min.js"></script>
     <script src="../js/popup.js"></script>
-    <script src="../js/tooltip.js"></script>
-    <script src="../js/jszip.js"></script>
-    <script src="../js/jszip-utils.js"></script>
-    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script src="../js/bootstrap/bootstrap.min.js"></script>
+    <script src="../js/bootstrap/tooltip.js"></script>
+    <script src="../js/jquery/jquery-3.6.0.min.js"></script>
+    <script src="../js/jszip/jszip.js"></script>
+    <script src="../js/jszip/jszip-utils.js"></script>
   </body>
 </html>

@@ -1,41 +1,17 @@
 {
   "name": "Grey-box Web Scraper",
-  "description": "Download websites",
+  "description": "Download Websites",
   "version": "3.2.3",
   "manifest_version": 3,
-	"icons": {
-		"128": "images/Picture4_128.png",
-		"48": "images/Picture4_48.png",
-		"16": "images/Picture4_16.png"
-	  },
-
-  "options_ui": {
-    "page": "html/options.html",
-    "open_in_tab": false
-  },
-  
-  "background": {
-    "service_worker": "js/background.js"
+  "icons": {
+    "128": "images/icons/grey-box_128.png",
+    "48": "images/icons/grey-box_48.png",
+    "16": "images/icons/grey-box_16.png"
   },
 
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["js/script2.js"]
-    }
-  ],
-
-  "permissions": [
-    "webRequest", 
-    "storage",
-    "tabs",
-    "downloads"
-  ],
-
+  "permissions": ["webRequest", "storage", "tabs", "downloads"],
 
   "action": {
-    "default_popup": "html/popup2.html"
+    "default_popup": "html/popup.html"
   }
-
-
 }
