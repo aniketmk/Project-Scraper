@@ -1,0 +1,74 @@
+<!--
+    Some notes:
+    This is the HTML for the options window that the user can navigate to
+    [PLACEHOLDER] indicates options that are planned, but not implemented yet
+-->
+<!DOCTYPE html>
+<html>
+  <link rel="stylesheet" href="../css/bootstrap.min.css">
+  <script src="../js/bootstrap.min.js"></script>
+  <head>
+    <title>Grey-box Web Scraper Options</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="../css/bootstrap.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+  </head>
+  <body class="m-auto">
+    
+    <h1>Options</h1> 
+
+    <div>
+      <label>
+        Depth
+        <div class="tooltip2">&#x1F6C8;
+          <span class="tooltiptext2">Each time we visit a new link, it is one level deeper than the page we found it on.</span>
+        </div>
+        <input class="d-inline-block" type="number" min="0" max="10" class="form-control" id="depth" placeholder="0-10" />
+      </label>
+    </div>
+     
+    <div> 
+      <label>
+        <input type="checkbox" id="omit-imgs" />
+        Omit Images
+        <div class="tooltip2">&#x1F6C8;
+          <span class="tooltiptext2">Select this if you wish to download webpages without images.</span>
+        </div>
+      </label>
+    </div>
+
+    <div>
+      <div class="tooltip2">[PLACEHOLDER]
+          <span class="tooltiptext2">This feature is not implemented yet.</span>
+        </div>
+      <label>
+        <input type="checkbox" id="omit-video" disabled />
+        Omit Video
+      </label>
+    </div>
+
+    <div>
+      <div class="tooltip2">[PLACEHOLDER]
+          <span class="tooltiptext2">This feature is not implemented yet.</span>
+        </div>
+      <label>
+        <input type="checkbox" id="restrict-domain" disabled />
+        Restrict Domain
+      </label>    
+    </div>
+
+    <button id="save" class="btn btn-success btn-sm mt-2">Save Options</button>
+    <div style="opacity:0; transition: 0.5s opacity" id="status" class="text-success">Options saved.</div>
+
+    <center>
+      Please provide feedback below!
+      <a class="btn btn-secondary btn-sm mt-2 mb-2" href="https://forms.gle/p6quKSCDj5PoyVb37" target="_blank">Extension Feedback</a>
+    </center>
+  
+
+    <script src="../js/jszip.js"></script>
+    <script src="../js/jszip-utils.js"></script>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script src="../js/options.js"></script>
+  </body>
+</html>

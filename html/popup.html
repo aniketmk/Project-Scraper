@@ -1,0 +1,68 @@
+<!--
+    Some notes:
+    This is the HTML for the popup window of the Chrome extension.
+-->
+<!DOCTYPE html>
+<html>
+  <link rel="stylesheet" href="../css/bootstrap.min.css">
+  <script src="../js/bootstrap.min.js"></script>
+  <head>
+    <title>Grey-box Web Scraper</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="../css/bootstrap.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+  </head>
+  <body class="py-2 px-3 bg-light">
+    <h1 class="text-center">Grey-Box<br> Web Downloader</h1>
+    <form id="form" class="row row-cols-lg-auto g-3 align-items-center">
+      <div class="col-12 input-group-sm">
+        <label for="url-input">Starting URL </label>
+        <div class="tooltip2">&#x1F6C8;
+          <span class="tooltiptext2">Enter the URL/Link to the website here</span>
+        </div>
+        <input type="url" required name="url" disabled class="form-control" id="url-input" placeholder="Enter URL">
+      </div>
+      
+      <div class="col-12 input-group-sm">
+        <label class="d-inline-block" for="depth-input">Depth</label>
+        <div class="tooltip2">&#x1F6C8;
+          <span class="tooltiptext2">Each time a new page is visited it is one level deeper than the last page</span>
+        </div>
+        <input class="d-inline-block" type="number" name="depth" min="0" max="10" class="form-control" id="depth-input" placeholder="0-10" value="1">
+      </div>
+
+      <form id="option-form" class="row row-cols-lg-auto g-3 align-items-center" action="#">
+
+          <div class="col-12">
+            <div class="form-check">
+              <label class="form-check-label" for="omit-imgs">
+                <input class="form-check-input" name="omit-imgs" type="checkbox" id="omit-imgs">
+                Omit Images
+              </label>
+              <div class="tooltip2">&#x1F6C8;
+                <span class="tooltiptext2">Select this if you wish to download webpages without images.</span>
+              </div>
+            </div>   
+          </div>
+
+        <div class="alert alert-danger" role="alert" id="link-alert" style="font-size:12px" hidden>
+          This page has a lot of links, we recommend setting a low depth for a faster download.
+        </div>
+
+      </form>
+
+      <div class="col-12 mb-2">
+        <button id="submit-btn" type="submit" class="btn btn-primary btn-sm">Download</button>
+        <a class="btn btn-success btn-sm" href="tutorial.html" target="_blank">Tutorial</a>
+      </div>
+
+    </form>
+
+    <button class="btn btn-sm btn-secondary" id="go-to-options">Go to options</button>
+
+    <script src="../js/jszip.js"></script>
+    <script src="../js/jszip-utils.js"></script>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script src="../js/popup.js"></script>
+  </body>
+</html>

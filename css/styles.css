@@ -1,0 +1,120 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+body {
+  width : 340px;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Custom CSS Styles */
+
+/* General Styles */
+body {
+  background-color: #f0f0f0; /* Assuming a light gray background for the body */
+}
+
+/* Header Styles */
+.header {
+  background-color: #343a40; /* Assuming a dark background color for the header */
+  color: #fff; /* White color text for the header */
+  padding: 1rem; /* Padding for the header */
+  border-radius: 0.5rem; /* Rounded corners for the header */
+  margin-bottom: 1.5rem; /* Margin bottom to separate it from the following content */
+}
+
+/* Main Content Styles */
+.main-content {
+  padding: 2rem; /* Padding for the main content */
+}
+
+/* Submit Button Section Styles */
+.submit-button-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+#submitButton {
+  text-align: center;
+}
+
+.sphere3D {
+  /* Existing styles for sphere3D class (if any) */
+}
+
+.artistic {
+  /* Existing styles for artistic class (if any) */
+}
+
+/* Toast Notification Section Styles */
+.toast-notification-section {
+  margin-bottom: 1.5rem;
+}
+
+/* Advanced Options Section Styles */
+.advanced-options-section {
+  /* You can add styles for the advanced options section here */
+}
+
+.btn-toggle-advanced-options {
+  background-color: white;
+  border: none;
+  color: dimgray;
+}
+
+.advanced-options-controls {
+  /* Styles for the controls within the advanced options section */
+}
+
+/* Additional helper classes (if needed) */
+
+/* ... */
+
+
+#depth-input {
+  width : 55px;
+}
+
+
+.sizing {
+  width: 100%;
+  height: 100px;
+}
+
+.sphere3D {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  overflow: hidden;
+}
+span.artistic {
+  color: grey;            
+  font-weight: bold;    
+  display: inline-block;     
+}
+
+.sphere3D img {
+  width: 100%;
+  height: auto;
+}
+
+.sphere3D:hover {
+  box-shadow: 0px 5px 15px rgba(0,0,0,0.3);
+  transform: perspective(500px) rotateX(10deg) translateY(-5px);
+}
+
+.sphere3D:active {
+  box-shadow: 0px 2px 10px rgba(0,0,0,0.3);
+  transform: perspective(500px) rotateX(10deg) translateY(2px);
+  top: 3px;
+}  
+
+.feedback-form-hide {
+  display: none;
+}
+.feedback-form-show {
+  display: block;
+}

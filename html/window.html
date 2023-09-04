@@ -1,0 +1,47 @@
+<!--
+    This is the HTML for the external window that opens once the user presses download.
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Grey-Box</title>
+    <link rel="stylesheet" href="../css/bootstrap.min.css" />
+    <!-- <link rel="stylesheet" href="../css/styles.css" /> -->
+  </head>
+  <body class="py-2 px-3 me-0 text-center">
+    <h1>Do not close this window while downloading page is in progress....</h1>
+
+    <div class="progress">
+      <div
+        id="progress-bar"
+        class="progress-bar progress-bar-striped progress-bar-animated"
+        role="progressbar"
+        style="width: 0%"
+        aria-valuenow="0"
+        aria-valuemin="0"
+        aria-valuemax="100"
+      >
+        <span id="current-progress"></span>
+      </div>
+    </div>
+    <p id="notification"></p>
+
+    <div id="feedback-form" class="mt-2 feedback-form-hide">
+      <center>
+        Your Download Is Complete!
+        <a
+          class="btn btn-secondary btn-sm mt-1"
+          href="https://forms.gle/p6quKSCDj5PoyVb37"
+          target="_blank"
+          >Please provide feedback</a
+        >
+      </center>
+    </div>
+
+    <script src="../js/bootstrap.min.js"></script>
+    <script src="../js/jszip.js"></script>
+    <script src="../js/jszip-utils.js"></script>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script src="../js/window.js"></script>
+  </body>
+</html>
