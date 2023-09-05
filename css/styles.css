@@ -9,15 +9,6 @@ body {
   background-color: #f0f0f0; /* Sets the background color of the element to a light gray color (hexadecimal code for the color is #f0f0f0) */
 }
 
-/* Header Styles */
-.header {
-  background-color: #343a40; /* Sets the background color of the element to a dark grey color represented by the hex code #343a40 */
-  color: #fff; /* Sets the text color inside the element to white */
-  padding: 1rem; /* Adds padding of 1rem around the content inside the element, providing space between the content and the border/edge */
-  border-radius: 0.5rem; /* Rounds the corners of the element with a radius of 0.5rem, giving it a softer, rounded appearance */
-  margin-bottom: 1.5rem; /* Adds space below the element, creating a margin of 1.5rem between it and any elements that follow it */
-}
-
 /* Main Content Styles */
 .main-content {
   padding: 2rem; /* Padding for the main content */
@@ -51,7 +42,7 @@ body {
 }
 
 .button-title {
-  color: #fff; /* Sets the text color of the element to white */
+  color: grey; /* Sets the text color of the element to grey */
   font-weight: bold; /* Sets the font weight of the text inside the element to bold */
   display: inline-block; /* Allows the element to have block-level properties (like width and height) while being displayed inline with surrounding elements */
 }
@@ -65,6 +56,11 @@ body {
   background-color: white; /* Sets the background color of the button to white */
   border: none; /* Removes any border from the button */
   color: dimgray; /* Sets the text color of the button to dimgray */
+}
+
+/* Style for the checked state */
+input[type="checkbox"]:checked {
+  background-color: dimgray; /* Sets the color of the background checkbox to dimgray */
 }
 
 .feedback-form-hide {

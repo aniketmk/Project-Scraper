@@ -24,9 +24,9 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="../css/styles.css" />
   </head>
-  <body class="py-2 px-3 me-0 text-center">
+  <body class="py-2 px-3 me-0">
     <!-- Header Section -->
-    <header>
+    <header class="text-white text-center bg-secondary rounded py-2 px-1 mb-3">
       <h3>
         Do not close this window while downloading page is in progress....
       </h3>
@@ -52,7 +52,7 @@
       </section>
 
       <!-- Feedback Form Section -->
-      <section id="feedback-form-section" class="mt-2 d-none">
+      <section id="feedback-form-section" class="d-none mt-2">
         <div class="text-center">
           Your Download Is Complete!
           <a
@@ -69,11 +69,12 @@
     <!-- Footer Section -->
 
     <!-- JS Scripts -->
-    <script src="../js/popup.js"></script>
+    <script src="../js/jszip/jszip.js"></script>
+    <script src="../js/jszip/jszip-utils.js"></script>
+    <!-- Ordering Is Important -->
+    <script src="../js/window.js"></script>
     <script src="../js/bootstrap/bootstrap.min.js"></script>
     <script src="../js/bootstrap/tooltip.js"></script>
     <script src="../js/jquery/jquery-3.6.0.min.js"></script>
-    <script src="../js/jszip/jszip.js"></script>
-    <script src="../js/jszip/jszip-utils.js"></script>
   </body>
 </html>

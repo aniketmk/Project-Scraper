@@ -1,7 +1,19 @@
-// Create BroadcastChannel for sending messages, called scraper_data
-const bcb = new BroadcastChannel("scraper_data");
+// Initialize a BroadcastChannel named 'scraper_data' to facilitate message communication.
+const broadcastChannel = new BroadcastChannel("scraper_data");
 
+// Declare a variable to hold the URL of the current page.
 let currentPage;
+
+// Get the DOM elements to apply the typewriter effect and to attach the event listeners.
+const submitButton = document.getElementById("submit-button");
+const buttonTitle = document.getElementById("button-title");
+
+// This object serves as a container to store the global state.
+const globalState = {
+  position: 0,
+};
+
+// Get the state of various checkboxes from the DOM to set the initial settings.
 let isExcludeImages = document.getElementById(
   "exclude-images-checkbox"
 ).checked;
@@ -10,157 +22,183 @@ let isRestrictDomain = document.getElementById(
   "restrict-domain-checkbox"
 ).checked;
 
-//This fills the starting url with the current tabs url, and starts the getLinks() method
-chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {
+/**
+ * Set the current page URL as the starting URL.
+ * The chrome.tabs.query method retrieves the details of the current active tab in the current window
+ * and sets the URL of that tab as the 'currentPage'.
+ */
+chrome.tabs.query({ currentWindow: true, active: true }, (tabs) => {
   currentPage = tabs[0].url;
-  // getLinks();
 });
 
-// Use a flag to let user know the extension is downloading
-function setFlagDownload(bool) {
-  chrome.storage.sync.set({ flagDownload: bool });
-}
+/**
+ * Updates the 'flagDownload' in the chrome storage with the given boolean value.
+ * This function acts as a way to set a flag that indicates whether a download operation is ongoing.
+ * @param {boolean} isDownloading - A boolean value indicating the download status.
+ */
+const setDownloadFlag = (isDownloading) => {
+  chrome.storage.sync.set({ flagDownload: isDownloading });
+};
 
-// When extension opens, fill the values from options, and open the popup window
+// Event listener that triggers when the DOM is fully loaded.
+// It fills the options form, opens a new window, and resets the download flag.
 document.addEventListener("DOMContentLoaded", () => {
   fillOptions();
   openWindow();
-  setFlagDownload("False");
+  setDownloadFlag(false);
 });
 
-document.addEventListener("unload", function (event) {
+// Event listener that triggers when the window is about to unload (close).
+// It prevents the unload event and alerts the user with a message.
+document.addEventListener("unload", (event) => {
   event.preventDefault();
   alert(
     "The popup window was closed. Please reopen the extension to get it back."
   );
 });
 
-// When user submits, send the form data
-document
-  .getElementById("submit-button")
-  .addEventListener("click", checkFlagDownload);
-
-// Global state
-const globalState = {
-  position: 0,
-};
-
-function TypeWriter(element, text, delay = 50) {
+/**
+ * This function creates a typewriter effect on a given element.
+ * @param {HTMLElement} element - The DOM element where the typewriter effect displays the text.
+ * @param {string} text - The text to be displayed with the typewriter effect.
+ * @param {number} [delay=50] - The delay between each character typing in milliseconds (default is 50ms).
+ * @returns An object containing start and stop methods to control the typewriter effect.
+ */
+const TypeWriter = (element, text, delay = 50) => {
   let intervalId = null;
 
   function type() {
+    // Adds one character at a time to the element's innerHTML until the whole text is typed.
     if (globalState.position < text.length) {
       element.innerHTML += text.charAt(globalState.position);
-      console.log(text.charAt(globalState.position));
+      // console.log(text.charAt(globalState.position));
       globalState.position++;
     } else {
-      stop(); // Stop when the end of the text is reached
+      stop(); // Stops the typing once the end of the text is reached.
     }
   }
 
   function start() {
+    // Starts the typewriter effect with a set interval if it's not already running.
     if (!intervalId) {
       intervalId = setInterval(type, delay);
     }
   }
 
   function stop() {
+    // Stops the typewriter effect by clearing the interval and resetting the interval ID.
     clearInterval(intervalId);
     intervalId = null;
   }
 
+  // Exposes the start and stop methods to control the typewriter effect externally.
   return {
     start: start,
     stop: stop,
   };
-}
-const outputDiv = document.getElementById("button-title");
-const writer = TypeWriter(outputDiv, "Click To Download");
-const submitt = document.getElementById("submit-button");
-submitt.addEventListener("mouseenter", function () {
+};
+
+// Create a typewriter instance with the target element and text.
+const writer = TypeWriter(buttonTitle, "Click To Download");
+
+// Adds event listeners to the submit button to start the typewriter effect on mouse enter respectively.
+submitButton.addEventListener("mouseenter", () => {
   writer.start();
 });
 
-submitt.addEventListener("mouseleave", function () {
+// Adds event listeners to the submit button to stop the typewriter effect on mouse leave respectively.
+submitButton.addEventListener("mouseleave", () => {
   writer.stop();
 });
 
-// Function to turn on the flag to check if it is downloading
+// Adding an event listener to the submit button to initiate the checkFlagDownload function when clicked.
+submitButton.addEventListener("click", checkFlagDownload);
+
+/**
+ * Checks the flag in the chrome storage to see if a download is currently in progress.
+ * If a download is not in progress (flag is "False"), it initiates the sending of form data.
+ * Otherwise, it displays a bootstrap toast notification to the user.
+ */
 function checkFlagDownload() {
   chrome.storage.sync.get((items) => {
     if (items.flagDownload === "False") {
-      // Flag is off. It means the page is not downloaded
-      send();
-      //   setTimeout(() => {
-      //     let feedbackForm = document.getElementById('feedback-form');
-      //     feedbackForm.classList.toggle('feedback-form-show')
-      // }, downloadTime);
+      // The flag is off, indicating that no download is in progress. Proceed to send form data.
+      sendToWindowInstance();
     } else {
+      // A download is currently in progress. Display a toast notification to inform the user.
       // Create a new instance of the Bootstrap toast
       var toast = new bootstrap.Toast($("#toast"));
-      // Show the toast
+      // Display the toast notification
       toast.show();
     }
   });
 }
 
-//Sends a message containing the form data from the extension popup window
-function send() {
-  // popupWindow.focus(); // keep the popupWindow appear above the parent window.
-  bcb.postMessage([
+/**
+ * Sends a message containing the form data from the extension popup window through the broadcast channel.
+ * This function seems to be referencing undefined variables and
+ * make sure to define or import all necessary variables before using this function.
+ */
+function sendToWindowInstance() {
+  // Send the form data as an array through the broadcast channel.
+  broadcastChannel.postMessage([
     currentPage,
-    isImageExcluded,
-    isMultipleURLs,
-    depthInput,
-    downloadTime,
+    isExcludeImages,
+    isFocusMode,
+    isRestrictDomain,
   ]);
 }
 
-// This to alert when user input high depth
-// const depthInput = document.getElementById('depth-input');
-// depthInput.addEventListener('change', (event) => {
-//     const depthValue = event.target.value;
-//     const alert = document.getElementById('alert-depth')
-//     // Check value of depth is high
-//     if (depthValue >1) {
-//       alert.hidden=false;
-//     }else {
-//       alert.hidden=true;
-//     }
-//   });
-
-// Set the appropriate options values from chrome.storage
+/**
+ * Retrieves options values from the Chrome storage and fills the form inputs with those values.
+ * This function is responsible for populating the initial state of options in the popup window.
+ */
 function fillOptions() {
   chrome.storage.sync.get((items) => {
-    document.getElementById("depth-input").value = items.depth;
-    document.getElementById("omit-imgs").checked = items.omitImages;
-    // The following is commented out since we do not have these options implemented
-    // document.getElementById('omit-video').checked = items.omitVideo;
-    // document.getElementById('restrict-domain').checked = items.restrictDomain;
+    isExcludeImages = items.isExcludeImages;
+    isFocusMode = items.isFocusMode;
+    isRestrictDomain = items.isRestrictDomain;
   });
 }
 
+/**
+ * Opens a new popup window to run the scraping script found in window.js. This function also sets up listeners
+ * to prevent users from accidentally closing the window and to instruct them on how to reopen it if closed.
+ */
 function openWindow() {
-  // parameters for the window we will open
-  let params = `scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no,
-width=375,height=275,left=100,top=100,dependent=yes`;
+  // Define the parameters for the new popup window.
+  let params = `
+    scrollbars=no,
+    resizable=no,
+    status=no,
+    location=no,
+    toolbar=no,
+    menubar=no,
+    width=375,
+    height=275,
+    left=100,
+    top=100,
+    dependent=yes
+  `;
 
-  // Opens a new window which executes the scraping code from window.js
-  let popupWindow;
+  // Opens a new window and assign the WindowProxy object to popupWindow to execute the scraping code from window.js
+  let popupWindow = window.open(
+    "../html/window.html",
+    "scraper_window",
+    params
+  );
 
-  // open window and assign the WindowProxy object to popupWindow
-  popupWindow = window.open("../html/window.html", "scraper_window", params);
-
-  // once the window is loaded, add a listeners
+  // Setup event listeners once the window is loaded.
   popupWindow.onload = function () {
-    // try to prevent user from closing the window
-    popupWindow.addEventListener("beforeunload", function (event) {
+    // Adds an event listener to prevent the user from unintentionally closing the window by prompting a confirmation message
+    popupWindow.addEventListener("beforeunload", (event) => {
       event.preventDefault();
       event.returnValue =
         "Are you sure? Closing the popup window will prevent the extension from working.";
     });
-    // if the user closes the window, tell the user how to reopen it
-    popupWindow.addEventListener("unload", function (event) {
+
+    // Adds an event listener to alert the user with steps to reopen the popup window if they choose to close it
+    popupWindow.addEventListener("unload", (event) => {
       event.preventDefault();
       alert(
         "The popup window was closed. Please reopen the extension to get it back."
