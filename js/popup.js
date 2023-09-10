@@ -111,17 +111,17 @@ submitButton.addEventListener("mouseleave", () => {
   writer.stop();
 });
 
-// Adding an event listener to the submit button to initiate the checkFlagDownload function when clicked.
-submitButton.addEventListener("click", checkFlagDownload);
+// Adding an event listener to the submit button to initiate the checkDownloadFlag function when clicked.
+submitButton.addEventListener("click", checkDownloadFlag);
 
 /**
  * Checks the flag in the chrome storage to see if a download is currently in progress.
  * If a download is not in progress (flag is "False"), it initiates the sending of form data.
  * Otherwise, it displays a bootstrap toast notification to the user.
  */
-function checkFlagDownload() {
+function checkDownloadFlag() {
   chrome.storage.sync.get((items) => {
-    if (items.flagDownload === "False") {
+    if (!items.flagDownload) {
       // The flag is off, indicating that no download is in progress. Proceed to send form data.
       sendToWindowInstance();
     } else {
@@ -174,7 +174,7 @@ function openWindow() {
     location=no,
     toolbar=no,
     menubar=no,
-    width=375,
+    width=355,
     height=275,
     left=100,
     top=100,

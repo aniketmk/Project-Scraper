@@ -1,153 +1,140 @@
-// These are variables to indicate our user's settings. They are assigned from the BroadcastChannel message.
+// Initial user settings which are set via messages from the BroadcastChannel
 let startingURLInput = "";
 let isExcludeImages = false;
 let isFocusMode = false;
 let isRestrictDomain = false;
 
-// initializes empty lists for duplicate checking
+// Lists to keep track of different types of URLs and avoid duplicates
 let urlList = [];
 let urlCSS = [];
 let urlImage = [];
 let urlVideo = [];
 let urlJS = [];
-let scrapingDone = false;
-const bc = new BroadcastChannel("scraper_data");
 
-// Receive the message from the popup.js which contains the user's scraping settings
-bc.addEventListener("message", (event) => {
-  startingURLInput = event.data[0];
-  isExcludeImages = event.data[1];
-  isFocusMode = event.data[2];
-  isRestrictDomain = event.data[3];
-  setFlagDownload("True");
-  saveAs();
+// Flag to track if the scraping is completed
+let scrapingDone = false;
+
+// Used to show/hide user feedback form section
+let feedbackFormSection = document.getElementById("feedback-form-section");
+feedbackFormSection.style.display = "none";
+
+/**
+ * Updates the 'flagDownload' in the chrome storage with the given boolean value.
+ * This function acts as a way to set a flag that indicates whether a download operation is ongoing.
+ * @param {boolean} isDownloading - A boolean value indicating the download status.
+ */
+const setDownloadFlag = (isDownloading) => {
+  chrome.storage.sync.set({ flagDownload: isDownloading });
+};
+
+// Creating a new BroadcastChannel instance to communicate between different contexts
+const broadcastChannel = new BroadcastChannel("scraper_data");
+
+/**
+ * Event listener to handle messages from the broadcast channel.
+ * These messages contain user settings for the scraping process.
+ * Once the message is received, it initiates the download process.
+ */
+broadcastChannel.addEventListener("message", (event) => {
+  // Destructuring the event data array to extract individual settings
+  [startingURLInput, isExcludeImages, isFocusMode, isRestrictDomain] =
+    event.data;
+
+  // Calling function to set download flag
+  setDownloadFlag(true);
+
+  // Initiating the save process
+  startScrapingProcess();
 });
 
-// Set flag download
-function setFlagDownload(bool) {
-  chrome.storage.sync.set({ flagDownload: bool });
-}
+// Initialize a variable with the extension's ID
+let extId = chrome.runtime.id;
 
-let extId = chrome.runtime.id; // Get the extension's ID
+// Initialize a variable to track the depth of the crawl, set to zero by default
+let depth = 0;
 
-let depth = 0; //sets the default depth of the crawl
-let zip = new JSZip(); //creates a new file to hold the zipped contents
+// Create a new JSZip instance to hold the zipped contents
+let zip = new JSZip();
 
-function doSomethingAsync(delay) {
+/**
+ * A function to simulate asynchronous work with a given delay.
+ * This function resets the progress bar and progress text if the current progress is 100%.
+ *
+ * @param {number} delay - The delay in milliseconds before the function executes.
+ * @returns {Promise} - A promise that resolves if the current progress is 100%.
+ */
+function performLoadingProcess(delay) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
-      // simulate async work
-      if (document.getElementById("current-progress").innerText === 100 + "%") {
-        document.getElementById("current-progress").innerText = 0 + "%";
-        document.getElementById("progress-bar").style = "width:" + 0 + "%";
+      // Checking if the current progress is at 100%
+      if (document.getElementById("current-progress").innerText === "100%") {
+        // Resetting the progress text and bar to 0%
+        document.getElementById("current-progress").innerText = "0%";
+        document.getElementById("progress-bar").style.width = "0%";
+
+        // Resolve the promise indicating the async work is done
         resolve();
       }
     }, delay);
   });
 }
 
-async function saveAs() {
-  urlList[0] = { url: startingURLInput, depth: depthInputUser }; //sets the first url to the depth of 0
+/**
+ * This is main function that iterates through the list of all pages and starts scrapping process.
+ */
+async function startScrapingProcess() {
+  // Initialize the first URL and set its depth to 0
+  urlList[0] = { url: startingURLInput, depth: depth };
 
-  depth = depthInputUser; //gets the max depth input by the user
+  // Loop through each URL in the urlList to scrape their HTML content
   for (let i = 0; i < urlList.length; i++) {
-    document.getElementById("current-progress").innerText =
-      Math.ceil((i + 1 / urlList.length) * 100).toString() + "%";
-    document.getElementById("progress-bar").style =
-      "width:" + Math.ceil((i + 1 / urlList.length) * 100).toString() + "%";
-    // }
-    let htmlResponse = "<p>Error has occured</p>"; //Default html if something goes wrong with the
-    htmlResponse = await scrapeHtml(urlList[i].url, urlList[i].depth); //scrapes the pages and returns html
-    if (i === 0) {
-      zip.file(getTitle(urlList[i].url) + ".html", htmlResponse); // Puts the starting webpage in the main directory
-    } else zip.file("html/" + getTitle(urlList[i].url) + ".html", htmlResponse); //The rest of the links are placed in the html folder
+    // Calculate the progress percentage and update the progress bar and text
+    let progressPercentage =
+      Math.ceil(((i + 1) / urlList.length) * 100).toString() + "%";
+    document.getElementById("current-progress").innerText = progressPercentage;
+    document.getElementById("progress-bar").style.width = progressPercentage;
+
+    // Attempt to scrape the HTML content from the current URL
+    htmlResponse = await scrapeHtml(urlList[i].url, urlList[i].depth);
+
+    // Save the scraped HTML content to the zip file
+    let filePath = i === 0 ? "" : "html/";
+    zip.file(filePath + getTitle(urlList[i].url) + ".html", htmlResponse);
   }
 
-  await doSomethingAsync(3000);
-  console.log("loop is finished"); //scraping of all pages is done
+  // Wait for 3 seconds before continuing
+  await performLoadingProcess(3000);
 
+  // Generate the zip file name from the hostname of the starting URL
   let zipName = new URL(startingURLInput).hostname;
-  zip.generateAsync({ type: "blob" }).then(function (content) {
-    //Block of Code Downloads the zip
-    let urlBlob = URL.createObjectURL(content); //
-    console.log(content);
+
+  // Generate the zip file and initiate the download process
+  zip.generateAsync({ type: "blob" }).then((content) => {
+    let urlBlob = URL.createObjectURL(content);
+
+    // Initiate the download process and catch any errors that occur
     chrome.downloads
       .download({
         url: urlBlob,
         filename: zipName + ".zip",
         saveAs: true,
       })
-      .catch(
-        (err) =>
-          (document.getElementById("progress-notification").innerText = "error")
-      );
-  });
-  chrome.downloads.onChanged.addListener(function (downloadDelta) {
-    if (downloadDelta.state && downloadDelta.state.current === "complete") {
-      console.log("Download complete:", downloadDelta.id);
-      // Do something when a download completes...
-      document.getElementById("progress-notification").innerText =
-        "Use Chrome browser to open downloaded pages.";
-    }
+      .catch((error) => {
+        document.getElementById("current-progress").innerText =
+          "Error - " + error;
+      });
   });
 
-  setFlagDownload("False"); // Reset download process
-  zip = new JSZip(); //Clears the zip for future use
-}
-
-//given the url, makes url availible for file system naming conventions, used for html files, css files, and image files
-function getTitle(url) {
-  url = url.toString();
-  url = url.substring(8);
-  if (url.length >= 70) url = url.substring(url.length - 70);
-  url = url.replace(/[^a-zA-Z0-9 ]/g, "_");
-  return url;
-}
-//Method that makes requests to the get html,css,and image blobs
-let getData = async (url) => {
-  let result = "";
-  try {
-    result = $.get(url);
-    console.log(result);
-  } catch (e) {
-    return "Failed";
-  }
-  return result;
-};
-// Check a url for working
-let checkUrl = async (url) => {
-  try {
-    const response = await fetch(url, { method: "HEAD" });
-    if (response.ok) {
-      return true;
-    } else {
-      return false;
+  // Add a listener to track the download progress and display the feedback form upon completion
+  chrome.downloads.onChanged.addListener(function (downloadFile) {
+    if (downloadFile.state && downloadFile.state.current === "complete") {
+      feedbackFormSection.style.display = "block";
     }
-  } catch (error) {
-    console.error("Error:", error);
-  }
-};
-function getAbsolutePath(relPath, baseUrl) {
-  // To get absolute path, we need use URL class to concat a relative path and an absolute path
-  /** 
-  // Example
-  // new URL("../mypath","http://www.stackoverflow.com/search").href
-  //=> "http://www.stackoverflow.com/mypath"  
-  */
-  console.log(relPath);
-  console.log(baseUrl);
-  let URLconcat = new URL(relPath, baseUrl);
-  return URLconcat;
-}
+  });
 
-//checks a url for a duplicate url
-function checkDuplicate(e, list) {
-  for (let i = 0; i < list.length; i++) {
-    if (e === list[i].url) {
-      return true;
-    }
-  }
-  return false;
+  // Reset the download flag and clear the zip variable for future use
+  setDownloadFlag(false);
+  zip = new JSZip();
 }
 
 //GIVEN THE URL AND URL_DEPTH, updates the zip files and adds more urls to the list
@@ -469,11 +456,9 @@ async function scrapeHtml(url, urlDepth) {
     try {
       console.log(url);
       html = await getData(url); //gets html of the url
-      console.log(html);
       try {
         html = await getJavascript(html); // download external Javascript files
         html = await getCSS(html); //downloads css
-        let isExcludeImages;
         if (!isExcludeImages) {
           // checks if the user wants to omit images or not
           html = await getImgs(html); //downloads images
