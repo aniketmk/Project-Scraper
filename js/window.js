@@ -24,7 +24,7 @@ feedbackFormSection.style.display = "none";
  * @param {boolean} isDownloading - A boolean value indicating the download status.
  */
 const setDownloadFlag = (isDownloading) => {
-  chrome.storage.sync.set({ flagDownload: isDownloading });
+  chrome.storage.sync.set({ downloadFlag: isDownloading });
 };
 
 // Creating a new BroadcastChannel instance to communicate between different contexts

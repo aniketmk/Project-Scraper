@@ -35,7 +35,8 @@ let checkUrl = async (url) => {
  * @returns {string} - The formatted URL string.
  */
 function getTitle(url) {
-  url = url.toString().substring(8);
+  url = url.toString();
+  url = url.substring(url.indexOf("://") + 3); // Removes protocol dynamically
   // If the URL is longer than 70 characters, only the last 70 characters are used.
   if (url.length >= 70) url = url.substring(url.length - 70);
   // Replacing all non-alphanumeric characters with underscores to prevent file naming issues.
@@ -74,8 +75,8 @@ function getAbsolutePath(relPath, baseUrl) {
 
 /**
  * This function checks if a URL is a duplicate within a given list.
- * @param {string} e - The URL to be checked.
- * @param {Array} list - The list of URLs to check against.
+ * @param {string} url - The URL to be checked.
+ * @param {Array} listUrl - The list of URLs to check against.
  * @returns {boolean} - Returns true if the URL is found in the list, false otherwise.
  */
 function checkDuplicate(url, listUrl) {

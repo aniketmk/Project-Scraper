@@ -14,13 +14,32 @@ const globalState = {
 };
 
 // Get the state of various checkboxes from the DOM to set the initial settings.
-let isExcludeImages = document.getElementById(
-  "exclude-images-checkbox"
-).checked;
-let isFocusMode = document.getElementById("focus-mode-checkbox").checked;
-let isRestrictDomain = document.getElementById(
-  "restrict-domain-checkbox"
-).checked;
+let isExcludeImages = false;
+let isFocusMode = false;
+let isRestrictDomain = false;
+
+document
+  .getElementById("exclude-images-checkbox")
+  .addEventListener("change", () => {
+    console.log("efwefwe");
+    isExcludeImages = true;
+    setAdvancedOptionsFlag("excludeImages", true);
+    fillOptions();
+  });
+document
+  .getElementById("focus-mode-checkbox")
+  .addEventListener("change", () => {
+    isFocusMode = true;
+    setAdvancedOptionsFlag("focusMode", true);
+    fillOptions();
+  });
+document
+  .getElementById("restrict-domain-checkbox")
+  .addEventListener("check", () => {
+    isRestrictDomain = true;
+    setAdvancedOptionsFlag("restrictDomain", true);
+    fillOptions();
+  });
 
 /**
  * Set the current page URL as the starting URL.
@@ -37,15 +56,31 @@ chrome.tabs.query({ currentWindow: true, active: true }, (tabs) => {
  * @param {boolean} isDownloading - A boolean value indicating the download status.
  */
 const setDownloadFlag = (isDownloading) => {
-  chrome.storage.sync.set({ flagDownload: isDownloading });
+  chrome.storage.sync.set({ downloadFlag: isDownloading });
+};
+
+/**
+ * Updates the 'advancedOptionType' in the chrome storage with the given boolean value.
+ * @param {string} advancedOptionType - A string value indicating the advanced option type.
+ * @param {boolean} isAdvancedOptionSelected - A boolean value indicating the download status.
+ */
+const setAdvancedOptionsFlag = (
+  advancedOptionType,
+  isAdvancedOptionSelected
+) => {
+  chrome.storage.sync.set({ [advancedOptionType]: isAdvancedOptionSelected });
 };
 
 // Event listener that triggers when the DOM is fully loaded.
 // It fills the options form, opens a new window, and resets the download flag.
 document.addEventListener("DOMContentLoaded", () => {
+  setDownloadFlag(false);
+  // Set selected choice for various checkboxes in chrome storage
+  // setAdvancedOptionsFlag("excludeImages", isExcludeImages);
+  // setAdvancedOptionsFlag("focusMode", isFocusMode);
+  // setAdvancedOptionsFlag("restrictDomain", isRestrictDomain);
   fillOptions();
   openWindow();
-  setDownloadFlag(false);
 });
 
 // Event listener that triggers when the window is about to unload (close).
@@ -121,7 +156,7 @@ submitButton.addEventListener("click", checkDownloadFlag);
  */
 function checkDownloadFlag() {
   chrome.storage.sync.get((items) => {
-    if (!items.flagDownload) {
+    if (!items.downloadFlag) {
       // The flag is off, indicating that no download is in progress. Proceed to send form data.
       sendToWindowInstance();
     } else {
@@ -155,6 +190,8 @@ function sendToWindowInstance() {
  */
 function fillOptions() {
   chrome.storage.sync.get((items) => {
+    // wef
+    console.log(items);
     isExcludeImages = items.isExcludeImages;
     isFocusMode = items.isFocusMode;
     isRestrictDomain = items.isRestrictDomain;
@@ -188,20 +225,29 @@ function openWindow() {
     params
   );
 
+  if (
+    !popupWindow ||
+    popupWindow.closed ||
+    typeof popupWindow.closed == "undefined"
+  ) {
+    // Ask user to allow pop-ups for the specific website
+    alert("Please allow pop-ups for this website in order to download it.");
+  }
+
   // Setup event listeners once the window is loaded.
   popupWindow.onload = function () {
     // Adds an event listener to prevent the user from unintentionally closing the window by prompting a confirmation message
     popupWindow.addEventListener("beforeunload", (event) => {
       event.preventDefault();
       event.returnValue =
-        "Are you sure? Closing the popup window will prevent the extension from working.";
+        "Are you sure? Closing the progress window will prevent the extension from working.";
     });
 
     // Adds an event listener to alert the user with steps to reopen the popup window if they choose to close it
     popupWindow.addEventListener("unload", (event) => {
       event.preventDefault();
       alert(
-        "The popup window was closed. Please reopen the extension to get it back."
+        "The progress window  was closed. Please reopen the extension to get it back."
       );
     });
   };
