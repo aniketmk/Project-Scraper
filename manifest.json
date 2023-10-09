@@ -1,0 +1,17 @@
+{
+  "name": "Grey-box Web Scraper",
+  "description": "Download Websites",
+  "version": "3.2.3",
+  "manifest_version": 3,
+  "icons": {
+    "128": "images/icons/grey-box_128.png",
+    "48": "images/icons/grey-box_48.png",
+    "16": "images/icons/grey-box_16.png"
+  },
+
+  "permissions": ["webRequest", "storage", "tabs", "downloads"],
+
+  "action": {
+    "default_popup": "html/popup.html"
+  }
+}
