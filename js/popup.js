@@ -8,6 +8,11 @@ let currentPage;
 const submitButton = document.getElementById("submit-button");
 const buttonTitle = document.getElementById("button-title");
 
+// Get the DOM  elements to control persistent saving options
+const excludeImages = document.getElementById("exclude-images-checkbox");
+const focusMode = document.getElementById("focus-mode-checkbox");
+const restrictDomain = document.getElementById("restrict-domain-checkbox");
+
 // This object serves as a container to store the global state.
 const globalState = {
   position: 0,
@@ -18,28 +23,18 @@ let isExcludeImages = false;
 let isFocusMode = false;
 let isRestrictDomain = false;
 
-document
-  .getElementById("exclude-images-checkbox")
-  .addEventListener("change", () => {
-    console.log("efwefwe");
-    isExcludeImages = true;
-    setAdvancedOptionsFlag("excludeImages", true);
-    fillOptions();
-  });
-document
-  .getElementById("focus-mode-checkbox")
-  .addEventListener("change", () => {
-    isFocusMode = true;
-    setAdvancedOptionsFlag("focusMode", true);
-    fillOptions();
-  });
-document
-  .getElementById("restrict-domain-checkbox")
-  .addEventListener("check", () => {
-    isRestrictDomain = true;
-    setAdvancedOptionsFlag("restrictDomain", true);
-    fillOptions();
-  });
+excludeImages.addEventListener("change", () => {
+  isExcludeImages = true;
+  fillOptions();
+});
+focusMode.addEventListener("change", () => {
+  isFocusMode = true;
+  fillOptions();
+});
+restrictDomain.addEventListener("check", () => {
+  isRestrictDomain = true;
+  fillOptions();
+});
 
 /**
  * Set the current page URL as the starting URL.
@@ -59,26 +54,10 @@ const setDownloadFlag = (isDownloading) => {
   chrome.storage.sync.set({ downloadFlag: isDownloading });
 };
 
-/**
- * Updates the 'advancedOptionType' in the chrome storage with the given boolean value.
- * @param {string} advancedOptionType - A string value indicating the advanced option type.
- * @param {boolean} isAdvancedOptionSelected - A boolean value indicating the download status.
- */
-const setAdvancedOptionsFlag = (
-  advancedOptionType,
-  isAdvancedOptionSelected
-) => {
-  chrome.storage.sync.set({ [advancedOptionType]: isAdvancedOptionSelected });
-};
-
 // Event listener that triggers when the DOM is fully loaded.
 // It fills the options form, opens a new window, and resets the download flag.
 document.addEventListener("DOMContentLoaded", () => {
   setDownloadFlag(false);
-  // Set selected choice for various checkboxes in chrome storage
-  // setAdvancedOptionsFlag("excludeImages", isExcludeImages);
-  // setAdvancedOptionsFlag("focusMode", isFocusMode);
-  // setAdvancedOptionsFlag("restrictDomain", isRestrictDomain);
   fillOptions();
   openWindow();
 });
@@ -190,7 +169,6 @@ function sendToWindowInstance() {
  */
 function fillOptions() {
   chrome.storage.sync.get((items) => {
-    // wef
     console.log(items);
     isExcludeImages = items.isExcludeImages;
     isFocusMode = items.isFocusMode;
