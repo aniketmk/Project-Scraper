@@ -5,8 +5,10 @@
  */
 let getData = async (url) => {
   let result = "";
+  // CORS Proxy endpoint
+  const corsProxyUrl = "https://cors-anywhere.herokuapp.com/";
   try {
-    result = await $.get(url);
+    result = $.get(corsProxyUrl + url);
   } catch (error) {
     console.error("Error:", error);
   }
