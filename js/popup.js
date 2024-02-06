@@ -4,9 +4,8 @@ const broadcastChannel = new BroadcastChannel("scraper_data");
 // Declare a variable to hold the URL of the current page.
 let currentPage;
 
-// Get the DOM elements to apply the typewriter effect and to attach the event listeners.
+// Get the DOM elements to attach the event listeners.
 const submitButton = document.getElementById("submit-button");
-const buttonTitle = document.getElementById("button-title");
 
 // Get the DOM  elements to control persistent saving options
 const excludeImages = document.getElementById("exclude-images-checkbox");
@@ -69,60 +68,6 @@ document.addEventListener("unload", (event) => {
   alert(
     "The popup window was closed. Please reopen the extension to get it back."
   );
-});
-
-/**
- * This function creates a typewriter effect on a given element.
- * @param {HTMLElement} element - The DOM element where the typewriter effect displays the text.
- * @param {string} text - The text to be displayed with the typewriter effect.
- * @param {number} [delay=50] - The delay between each character typing in milliseconds (default is 50ms).
- * @returns An object containing start and stop methods to control the typewriter effect.
- */
-const TypeWriter = (element, text, delay = 50) => {
-  let intervalId = null;
-
-  function type() {
-    // Adds one character at a time to the element's innerHTML until the whole text is typed.
-    if (globalState.position < text.length) {
-      element.innerHTML += text.charAt(globalState.position);
-      // console.log(text.charAt(globalState.position));
-      globalState.position++;
-    } else {
-      stop(); // Stops the typing once the end of the text is reached.
-    }
-  }
-
-  function start() {
-    // Starts the typewriter effect with a set interval if it's not already running.
-    if (!intervalId) {
-      intervalId = setInterval(type, delay);
-    }
-  }
-
-  function stop() {
-    // Stops the typewriter effect by clearing the interval and resetting the interval ID.
-    clearInterval(intervalId);
-    intervalId = null;
-  }
-
-  // Exposes the start and stop methods to control the typewriter effect externally.
-  return {
-    start: start,
-    stop: stop,
-  };
-};
-
-// Create a typewriter instance with the target element and text.
-const writer = TypeWriter(buttonTitle, "Click To Download");
-
-// Adds event listeners to the submit button to start the typewriter effect on mouse enter respectively.
-submitButton.addEventListener("mouseenter", () => {
-  writer.start();
-});
-
-// Adds event listeners to the submit button to stop the typewriter effect on mouse leave respectively.
-submitButton.addEventListener("mouseleave", () => {
-  writer.stop();
 });
 
 // Adding an event listener to the submit button to initiate the checkDownloadFlag function when clicked.
