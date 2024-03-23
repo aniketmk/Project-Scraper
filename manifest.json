@@ -9,7 +9,16 @@
     "16": "images/icons/grey-box_16.png"
   },
 
-  "permissions": ["webRequest", "storage", "tabs", "downloads"],
+  "permissions": [
+    "webRequest",
+    "storage",
+    "tabs",
+    "downloads"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
 
   "action": {
     "default_popup": "html/popup.html"
