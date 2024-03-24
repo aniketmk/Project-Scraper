@@ -146,7 +146,7 @@ async function startScrapingProcess() {
  * @param {number} urlDepth - The depth of the page that needs to be downloaded.
  * @returns {string} - The updated HTML content as a string.
  */
-async function getCSS(html, urlDepth) {
+async function getCSS(html, url, urlDepth) {
   // Initialize a DOMParser instance
   let dp = new DOMParser();
   // Parse the HTML string into a DOM Document object
@@ -514,7 +514,7 @@ async function scrapeHtml(url, urlDepth) {
       try {
         // Download various resources from the webpage
         html = await getJavaScript(html, url, urlDepth); // Download external JavaScript files
-        html = await getCSS(html, urlDepth); // Download CSS files
+        html = await getCSS(html, url, urlDepth); // Download CSS files
         // Download images if the user has not opted to exclude them
         if (!isExcludeImages) {
           html = await getImgs(html, url, urlDepth);
