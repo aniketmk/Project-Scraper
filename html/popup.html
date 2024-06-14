@@ -64,6 +64,22 @@
         </div>
       </section>
 
+    <!-- Progress Bar Section-->
+      <section class="progress-bar-section">
+        <div class="progress-bar-wrapper">
+          <div
+            id="progress-bar"
+            class="progress-bar progress-bar-striped progress-bar-animated"
+            role="progressbar"
+            aria-valuenow="0"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <span id="current-progress"></span>
+          </div>
+        </div>
+      </section>
+
       <!-- Advanced Options Section -->
       <section>
         <!-- Button to Toggle Advanced Options -->
@@ -194,16 +210,31 @@
           </div>
         </div>
       </section>
+
+      <!-- Feedback Form Section -->
+      <section id="feedback-form-section">
+        <div class="d-flex justify-content-left pl-0 mt-2">
+          <a
+            class="btn btn-secondary btn-sm mt-1"
+            href="https://forms.gle/p6quKSCDj5PoyVb37"
+            target="_blank"
+          >
+           Provide Us Feedback
+          </a>
+        </div>
+      </section>
     </main>
 
     <!-- Footer Section -->
 
     <!-- JS Scripts -->
+    <script src="../js/jszip/jszip.js"></script>
+    <script src="../js/jszip/jszip-utils.js"></script>
+    <script src="../js/jquery/jquery-3.6.0.min.js"></script>
+    <!-- Order is important -->
+    <script src="../js/utils/utility-functions.js"></script>
     <script src="../js/popup.js"></script>
     <script src="../js/bootstrap/bootstrap.min.js"></script>
     <script src="../js/bootstrap/tooltip.js"></script>
-    <script src="../js/jquery/jquery-3.6.0.min.js"></script>
-    <script src="../js/jszip/jszip.js"></script>
-    <script src="../js/jszip/jszip-utils.js"></script>
   </body>
 </html>
