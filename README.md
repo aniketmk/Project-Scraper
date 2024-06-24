@@ -68,10 +68,11 @@ By following these steps, you should have the "Project Scraper" Chrome Extension
 The extension will automatically detect the URL of the current active tab. Ensure that this is the URL you want to start scraping from.
 4. Configure Advanced Options:
     * Click on the "Advanced Options" button to expand the options.
-    * Exclude Images: Check this box if you do not want to download images from the website.
-    * Focus Mode: Check this box if you want to scrape only text-based content.
-Restrict Domain: Check this box if you want to restrict the scraping to the current domain.
-    * Depth: Set the depth for following links and downloading subpages. Enter a number to specify how many levels deep the scraper should go.
+    * Exclude Images: Check this box if you do not want to download images from the website. (Still in Development)
+    * Focus Mode: Check this box if you want to scrape only text-based content. (Still in Development)
+Restrict Domain: Check this box if you want to restrict the scraping to the current domain. (Still in Development)
+    * Download Multiple URLs: Check this box if you would like to download multiple URLs. (Still in Development)
+    * Depth: Set the depth for following links and downloading subpages. Enter a number to specify how many levels deep the scraper should go. (Still in Development)
 5. Start the Scraping Process:
     * Click the "Click to Download" button to initiate the scraping process.
     * A progress bar will appear, showing the current progress of the scraping process. 
