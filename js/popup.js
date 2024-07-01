@@ -202,8 +202,8 @@ async function startScrapingProcess() {
         saveAs: true,
       })
       .catch((error) => {
-        document.getElementById("current-progress").innerText =
-          "Error - " + error;
+        // Log any errors that occur in the download process.
+        console.error("Error in Download Process:  " + error);
       });
   });
 
