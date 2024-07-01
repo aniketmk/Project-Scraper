@@ -203,7 +203,7 @@ async function startScrapingProcess() {
       })
       .catch((error) => {
         // Log any errors that occur in the download process.
-        console.error("Error in Download Process:  " + error);
+        console.error("Error in Download Process: " + error);
       });
   });
 
