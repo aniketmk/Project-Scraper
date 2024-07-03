@@ -419,7 +419,7 @@ async function getCSSImg(data, place, urlFile, urlDepth) {
  * @param {string} html - The HTML data as a string.
  * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
  */
-async function getLinks(html, urlDepth) {
+async function getLinks(html, url, urlDepth) {
   if (urlDepth < depth) {
     // Check if the current scraping depth is less than the maximum allowed depth
     // Parse the HTML text into a DOM object
@@ -481,7 +481,7 @@ async function getLinks(html, urlDepth) {
  * @param {string} html - The HTML data as a string.
  * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
  */
-async function getVideos(html, urlDepth) {
+async function getVideos(html, url, urlDepth) {
   try {
     // Initialize a new DOMParser instance
     let dp = new DOMParser();
@@ -603,8 +603,8 @@ async function scrapeHtml(url, urlDepth) {
         }
         // Get additional resources like CSS images, videos, and links
         html = await getCSSImg(html, "html", url, urlDepth);
-        html = await getVideos(html, urlDepth);
-        html = await getLinks(html, urlDepth);
+        html = await getVideos(html, url, urlDepth);
+        html = await getLinks(html, url, urlDepth);
       } catch (err) {
         console.error("Error in resource download:", err);
       }
