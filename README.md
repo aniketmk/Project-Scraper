@@ -17,6 +17,9 @@ This Chrome extension will create an offline website that can be viewed on any m
     * [Steps to Use the Extension](#steps-to-use-the-extension)
     * [Notes](#notes)
 3. [External Libraries](#external-libraries)
+4. [Licenses](#licenses)
+    * [Project Scraper's License](#project-scrapers-license)
+    * [Licenses of Libraries Project Scraper Uses](#licenses-of-libraries-project-scraper-uses)
 
 ## Installation
 
@@ -92,3 +95,27 @@ Restrict Domain: Check this box if you want to restrict the scraping to the curr
 * Bootstrap
 * JQuery
 * JSZip
+
+## Licenses
+
+### Project Scraper's License
+
+Unless otherwise stated, Project Scraper is licensed under [MIT License](License). 
+
+### Licenses of Libraries Project Scraper Uses
+Here are the respective licenses of libraries Project Scraper uses:
+
+#### jQuery
+- **License**: MIT License
+- **Source**: [jQuery License](https://jquery.org/license/)
+
+#### Bootstrap
+- **License**: MIT License
+- **Source**: [Bootstrap License](https://getbootstrap.com/docs/5.0/about/license/)
+
+#### JSZip
+- **License**: Dual licensed under the MIT License or GPLv3
+- **Source**: [JSZip Website](https://stuk.github.io/jszip/)
+- **Source**: [JSZip Github License](https://github.com/Stuk/jszip/blob/main/LICENSE.markdown)
+
+Please refer to the respective licenses for more details.
