@@ -5,9 +5,8 @@ let currentPage;
 const submitButton = document.getElementById("submit-button");
 
 // Get the DOM  elements to control persistent saving options
-const excludeImages = document.getElementById("exclude-images-checkbox");
-const focusMode = document.getElementById("focus-mode-checkbox");
-const restrictDomain = document.getElementById("restrict-domain-checkbox");
+const focusMode = document.getElementById("focus-mode-toggle");
+const restrictDomain = document.getElementById("restrict-domain-toggle");
 
 // This object serves as a container to store the global state.
 const globalState = {
@@ -15,14 +14,13 @@ const globalState = {
 };
 
 // Get the state of various checkboxes from the DOM to set the initial settings.
-let isExcludeImages = false;
 let isFocusMode = false;
 let isRestrictDomain = false;
 
-excludeImages.addEventListener("change", () => {
-  isExcludeImages = true;
-  fillOptions();
-});
+// excludeImages.addEventListener("change", () => {
+//   isExcludeImages = true;
+//   fillOptions();
+// });
 focusMode.addEventListener("change", () => {
   isFocusMode = true;
   fillOptions();
@@ -93,8 +91,8 @@ function checkDownloadFlag() {
  * Start the scraping process and download the current page.
  */
 function downloadPage() {
-  [startingURLInput, isExcludeImages, isFocusMode, isRestrictDomain] =
-    [currentPage, isExcludeImages, isFocusMode, isRestrictDomain];
+  [startingURLInput, isFocusMode, isRestrictDomain] =
+    [currentPage, isFocusMode, isRestrictDomain];
 
   // Calling function to set download flag
   setDownloadFlag(true);
@@ -110,7 +108,7 @@ function downloadPage() {
 function fillOptions() {
   chrome.storage.sync.get((items) => {
     console.log(items);
-    isExcludeImages = items.isExcludeImages;
+    // isExcludeImages = items.isExcludeImages;
     isFocusMode = items.isFocusMode;
     isRestrictDomain = items.isRestrictDomain;
   });
@@ -521,9 +519,11 @@ async function getVideos(html, url, urlDepth) {
   } catch (err) {
     // Log any errors encountered during the process
     console.error(err);
+
   }
   // Return the (potentially unmodified) HTML string
   return html;
+
 }
 
 /**
@@ -596,9 +596,9 @@ async function scrapeHtml(url, urlDepth) {
       try {
         // Download various resources from the webpage
         html = await getJavaScript(html, url, urlDepth); // Download external JavaScript files
-        html = await getCSS(html, url, urlDepth); // Download CSS files
+        html = await getCSS(html, url, urlDepth); // Download CSS file
         // Download images if the user has not opted to exclude them
-        if (!isExcludeImages) {
+        if (!isFocusMode) {
           html = await getImgs(html, url, urlDepth);
         }
         // Get additional resources like CSS images, videos, and links
