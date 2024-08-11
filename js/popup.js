@@ -8,6 +8,7 @@ const submitButton = document.getElementById("submit-button");
 const excludeImages = document.getElementById("exclude-images-checkbox");
 const focusMode = document.getElementById("focus-mode-checkbox");
 const restrictDomain = document.getElementById("restrict-domain-checkbox");
+const depthMode = document.getElementById("choose-depth-input");
 
 // This object serves as a container to store the global state.
 const globalState = {
@@ -93,8 +94,12 @@ function checkDownloadFlag() {
  * Start the scraping process and download the current page.
  */
 function downloadPage() {
-  [startingURLInput, isExcludeImages, isFocusMode, isRestrictDomain] =
-    [currentPage, isExcludeImages, isFocusMode, isRestrictDomain];
+  [startingURLInput, isExcludeImages, isFocusMode, isRestrictDomain] = [
+    currentPage,
+    isExcludeImages,
+    isFocusMode,
+    isRestrictDomain,
+  ];
 
   // Calling function to set download flag
   setDownloadFlag(true);
@@ -133,7 +138,11 @@ let scrapingDone = false;
 let extId = chrome.runtime.id;
 
 // Initialize a variable to track the depth of the crawl, set to zero by default
-let depth = 0;
+let maxDepth = 0;
+
+depthMode.addEventListener("change", () => {
+  maxDepth = depthMode.value;
+});
 
 // Create a new JSZip instance to hold the zipped contents
 let zip = new JSZip();
@@ -166,7 +175,7 @@ function performLoadingProcess(delay) {
  */
 async function startScrapingProcess() {
   // Initialize the first URL and set its depth to 0
-  urlList[0] = { url: startingURLInput, depth: depth };
+  urlList[0] = { url: startingURLInput, depth: 0 };
 
   // Loop through each URL in the urlList to scrape their HTML content
   for (let i = 0; i < urlList.length; i++) {
@@ -420,20 +429,24 @@ async function getCSSImg(data, place, urlFile, urlDepth) {
  * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
  */
 async function getLinks(html, url, urlDepth) {
-  if (urlDepth < depth) {
-    // Check if the current scraping depth is less than the maximum allowed depth
+  if (urlDepth >= maxDepth) return html;
     // Parse the HTML text into a DOM object
     let parser = new DOMParser();
     let parsed = parser.parseFromString(html, "text/html");
     // Get all links within the HTML data
     let links = parsed.getElementsByTagName("a");
+    // Convert HTMLCollection to an array for easier manipulation
+    let linkArray = Array.from(links);
+
     // Loop through all found links
-    for (let j = 0; j < links.length; j++) {
-      let relative = links[j].getAttribute("href"); // Get the relative path of the link
-      let link = links[j].href; // Get the absolute URL of the link
+    for (let linkElement of linkArray) {
+      let relative = linkElement.getAttribute("href"); // Get the relative path of the link
+      let link = linkElement.href; // Get the absolute URL of the link
+
       // Check if the link contains unwanted strings or has been visited already,
       // or if the link is empty, then skip processing this link
       if (
+        !link ||
         link.includes("mailto") ||
         link.includes("tel") ||
         link.includes("#") ||
@@ -441,35 +454,36 @@ async function getLinks(html, url, urlDepth) {
         link.length === 0
       )
         continue;
+
       // Correct the format of the link if necessary
-      if (link.includes("chrome-extension://" + extId))
+      if (link || link.includes("chrome-extension://" + extId))
         link = getAbsolutePath(relative, url);
+
       console.log("adding to list:" + link);
       // Add the link to the list of URLs to be scraped, increasing the scraping depth
       urlList.push({ url: link, depth: urlDepth + 1 });
+
       // If the link is not to a PDF file, modify the href attribute to point to a local HTML file
-      if (!link.includes(".pdf")) {
+      if (link || !link.includes(".pdf")) {
         let linkTitle = getTitle(link);
         let newHref =
           urlDepth >= 1 ? linkTitle + ".html" : "html/" + linkTitle + ".html";
-        links[j].setAttribute("href", newHref);
-        // Update the HTML data to reflect the changes
-        html = parsed.documentElement.innerHTML;
-        continue;
-      }
-      // If the link is to a PDF file, download the PDF and modify the href attribute to point to the local PDF file
-      try {
-        let pdfName = getTitle(link) + ".pdf";
-        zip.file("pdf/" + pdfName, urlToPromise(link), { binary: true });
-        let newHref = urlDepth >= 1 ? "../pdf/" + pdfName : "pdf/" + pdfName;
-        links[j].setAttribute("href", newHref);
-      } catch (error) {
-        console.error(error);
+        linkElement.setAttribute("href", newHref);
+      } else {
+        // If the link is to a PDF file, download the PDF and modify the href attribute to point to the local PDF file
+        try {
+          let pdfName = getTitle(link) + ".pdf";
+          zip.file("pdf/" + pdfName, urlToPromise(link), { binary: true });
+          let newHref = urlDepth >= 1 ? "../pdf/" + pdfName : "pdf/" + pdfName;
+          linkElement.setAttribute("href", newHref);
+        } catch (error) {
+          console.error(error);
+        }
       }
       // Update the HTML data to reflect the changes
       html = parsed.documentElement.innerHTML;
     }
-  }
+  
   // Return the modified HTML data
   return html;
 }
