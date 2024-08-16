@@ -114,7 +114,7 @@ function downloadPage() {
  */
 function fillOptions() {
   chrome.storage.sync.get((items) => {
-    console.log(items);
+    // console.log(items);
     isExcludeImages = items.isExcludeImages;
     isFocusMode = items.isFocusMode;
     isRestrictDomain = items.isRestrictDomain;
@@ -138,10 +138,10 @@ let scrapingDone = false;
 let extId = chrome.runtime.id;
 
 // Initialize a variable to track the depth of the crawl, set to zero by default
-let maxDepth = 0;
+let maxDepthValue = 0;
 
 depthMode.addEventListener("change", () => {
-  maxDepth = depthMode.value;
+   maxDepthValue = depthMode.value;
 });
 
 // Create a new JSZip instance to hold the zipped contents
@@ -174,58 +174,61 @@ function performLoadingProcess(delay) {
  * This is main function that iterates through the list of all pages and starts scrapping process.
  */
 async function startScrapingProcess() {
+  // Start to process the links we want to scrape.
+  await processLinks();
+
   // Initialize the first URL and set its depth to 0
-  urlList[0] = { url: startingURLInput, depth: 0 };
+  // urlList[0] = { url: startingURLInput, depth: 0 };
 
-  // Loop through each URL in the urlList to scrape their HTML content
-  for (let i = 0; i < urlList.length; i++) {
-    // Calculate the progress percentage and update the progress bar and text
-    let progressPercentage =
-      Math.ceil(((i + 1) / urlList.length) * 100).toString() + "%";
-    document.getElementById("current-progress").innerText = progressPercentage;
-    document.getElementById("progress-bar").style.width = progressPercentage;
+  // // Loop through each URL in the urlList to scrape their HTML content
+  // for (let i = 0; i < urlList.length; i++) {
+  //   // Calculate the progress percentage and update the progress bar and text
+  //   let progressPercentage =
+  //     Math.ceil(((i + 1) / urlList.length) * 100).toString() + "%";
+  //   document.getElementById("current-progress").innerText = progressPercentage;
+  //   document.getElementById("progress-bar").style.width = progressPercentage;
 
-    // Attempt to scrape the HTML content from the current URL
-    htmlResponse = await scrapeHtml(urlList[i].url, urlList[i].depth);
+  //   // Attempt to scrape the HTML content from the current URL
+  //   htmlResponse = await scrapeHtml(urlList[i].url, urlList[i].depth);
 
-    // Save the scraped HTML content to the zip file
-    let filePath = i === 0 ? "" : "html/";
-    zip.file(filePath + getTitle(urlList[i].url) + ".html", htmlResponse);
-  }
+  //   // Save the scraped HTML content to the zip file
+  //   let filePath = i === 0 ? "" : "html/";
+  //   zip.file(filePath + getTitle(urlList[i].url) + ".html", htmlResponse);
+  // }
 
   // Wait for 3 seconds before continuing
-  await performLoadingProcess(3000);
+  // await performLoadingProcess(3000);
 
   // Generate the zip file name from the hostname of the starting URL
-  let zipName = new URL(startingURLInput).hostname;
+  // let zipName = new URL(startingURLInput).hostname;
 
   // Generate the zip file and initiate the download process
-  zip.generateAsync({ type: "blob" }).then((content) => {
-    let urlBlob = URL.createObjectURL(content);
+  // zip.generateAsync({ type: "blob" }).then((content) => {
+  //   let urlBlob = URL.createObjectURL(content);
 
-    // Initiate the download process and catch any errors that occur
-    chrome.downloads
-      .download({
-        url: urlBlob,
-        filename: zipName + ".zip",
-        saveAs: true,
-      })
-      .catch((error) => {
-        // Log any errors that occur in the download process.
-        console.error("Error in Download Process: " + error);
-      });
-  });
+  //   // Initiate the download process and catch any errors that occur
+  //   chrome.downloads
+  //     .download({
+  //       url: urlBlob,
+  //       filename: zipName + ".zip",
+  //       saveAs: true,
+  //     })
+  //     .catch((error) => {
+  //       // Log any errors that occur in the download process.
+  //       console.error("Error in Download Process: " + error);
+  //     });
+  // });
 
   // Add a listener to track the download progress and display the feedback form upon completion
-  chrome.downloads.onChanged.addListener(function (downloadFile) {
-    if (downloadFile.state && downloadFile.state.current === "complete") {
-      feedbackFormSection.style.display = "block";
-    }
-  });
+  // chrome.downloads.onChanged.addListener(function (downloadFile) {
+  //   if (downloadFile.state && downloadFile.state.current === "complete") {
+  //     feedbackFormSection.style.display = "block";
+  //   }
+  // });
 
-  // Reset the download flag and clear the zip variable for future use
-  setDownloadFlag(false);
-  zip = new JSZip();
+  // // Reset the download flag and clear the zip variable for future use
+  // setDownloadFlag(false);
+  // zip = new JSZip();
 }
 
 /******************************************************SCRAPING FUNCTIONS - START***********************************************************/
@@ -420,72 +423,89 @@ async function getCSSImg(data, place, urlFile, urlDepth) {
   return data;
 }
 
+
+/**
+ * Process the links for each website we intend to download.
+ */
+async function processLinks() {
+  /* We have used a BFS approach 
+   * considering the structure as 
+   * a tree. It uses a queue based 
+   * approach to traverse 
+   * links upto a particular depth
+   */ 
+  if (maxDepthValue === 0) {
+    console.log(currentPage);
+  } else if (maxDepthValue === 1) {
+    await getLinks();
+  } else {
+    let queue = [];
+    queue.push(currentPage);
+
+    for (let i of [...Array(maxDepthValue).keys()]) {
+      while (queue.length) {
+        let url = queue.shift();
+        let urls = await getLinks(url);
+        for (let j of urls) {
+          queue.push(j);
+        }
+      }
+    }
+  }
+}
+
 /**
  * Asynchronously processes HTML data to find and modify links to point to local files,
  * and downloads linked PDF files to include in a zip file. The function is recursive
  * and will scrape links up to a specified maximum depth.
  *
- * @param {string} html - The HTML data as a string.
- * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
+ * @param {string} inputUrl - The input or current page within the tab also works for multiple links.
+ * @returns {Promis<Array>} - The list of all the Urls for the page
  */
-async function getLinks(html, url, urlDepth) {
-  if (urlDepth >= maxDepth) return html;
-    // Parse the HTML text into a DOM object
-    let parser = new DOMParser();
-    let parsed = parser.parseFromString(html, "text/html");
-    // Get all links within the HTML data
-    let links = parsed.getElementsByTagName("a");
-    // Convert HTMLCollection to an array for easier manipulation
-    let linkArray = Array.from(links);
+async function getLinks(inputUrl = currentPage) {
+  // Temp storage of current urls
+  tempUrls = new Set();
 
-    // Loop through all found links
-    for (let linkElement of linkArray) {
-      let relative = linkElement.getAttribute("href"); // Get the relative path of the link
-      let link = linkElement.href; // Get the absolute URL of the link
+  // Get the html data for each page
+  html = await getData(inputUrl);
 
-      // Check if the link contains unwanted strings or has been visited already,
-      // or if the link is empty, then skip processing this link
-      if (
-        !link ||
-        link.includes("mailto") ||
-        link.includes("tel") ||
-        link.includes("#") ||
-        checkDuplicate(link, urlList) ||
-        link.length === 0
-      )
-        continue;
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
 
-      // Correct the format of the link if necessary
-      if (link || link.includes("chrome-extension://" + extId))
-        link = getAbsolutePath(relative, url);
+  // Search for all the urls on the first given page
+  for (let anchor of parsed.getElementsByTagName("a")) {
+    let relative = anchor.getAttribute("href");
+    let absoluteUrl = anchor.href;
 
-      console.log("adding to list:" + link);
-      // Add the link to the list of URLs to be scraped, increasing the scraping depth
-      urlList.push({ url: link, depth: urlDepth + 1 });
+    // Skip a bunch of unneeded links
+    if (
+      absoluteUrl.includes("mailto") ||
+      absoluteUrl.includes("tel") ||
+      absoluteUrl.includes("#") ||
+      checkDuplicate(absoluteUrl, urlList) ||
+      absoluteUrl.length === 0
+    )
+      continue;
 
-      // If the link is not to a PDF file, modify the href attribute to point to a local HTML file
-      if (link || !link.includes(".pdf")) {
-        let linkTitle = getTitle(link);
-        let newHref =
-          urlDepth >= 1 ? linkTitle + ".html" : "html/" + linkTitle + ".html";
-        linkElement.setAttribute("href", newHref);
-      } else {
-        // If the link is to a PDF file, download the PDF and modify the href attribute to point to the local PDF file
-        try {
-          let pdfName = getTitle(link) + ".pdf";
-          zip.file("pdf/" + pdfName, urlToPromise(link), { binary: true });
-          let newHref = urlDepth >= 1 ? "../pdf/" + pdfName : "pdf/" + pdfName;
-          linkElement.setAttribute("href", newHref);
-        } catch (error) {
-          console.error(error);
-        }
-      }
-      // Update the HTML data to reflect the changes
-      html = parsed.documentElement.innerHTML;
+    // Assure that the chrome-extension Urls are corrected to the absolute urls
+    if (absoluteUrl.includes("chrome-extension://" + extId) ||
+      absoluteUrl.includes("chrome-extension://"))
+      absoluteUrl = getAbsolutePath(relative, inputUrl);
+
+    // Make sure that there are no instances of URL in our program
+    if (absoluteUrl instanceof URL) continue;
+
+    // Make sure that no urls are already in the list
+    if (!urlList.includes(absoluteUrl)) {
+      // Note that the Url is being added to the list of Urls
+      console.log("Adding to list: " + absoluteUrl);
+
+      // Store the URLs
+      tempUrls.add(absoluteUrl);
+      urlList.push(absoluteUrl);
     }
-  
-  // Return the modified HTML data
-  return html;
+  }
+  return tempUrls;
 }
 
 /**
@@ -598,36 +618,36 @@ async function getImgs(html, url, urlDepth) {
  * @param {number} urlDepth - The depth of URLs to scrape.
  * @returns {Promise<string>} - A promise that resolves with the scraped HTML content.
  */
-async function scrapeHtml(url, urlDepth) {
-  let html = "";
+// async function scrapeHtml(url, urlDepth) {
+//   let html = "";
 
-  // Nested function to initiate the scraping process
-  const scrape = async (url) => {
-    try {
-      console.log("Scraping URL:", url);
-      html = await getData(url); // Get the HTML of the URL
+//   // Nested function to initiate the scraping process
+//   const scrape = async (url) => {
+//     try {
+//       console.log("Scraping URL:", url);
+//       html = await getData(url); // Get the HTML of the URL
 
-      try {
-        // Download various resources from the webpage
-        html = await getJavaScript(html, url, urlDepth); // Download external JavaScript files
-        html = await getCSS(html, url, urlDepth); // Download CSS files
-        // Download images if the user has not opted to exclude them
-        if (!isExcludeImages) {
-          html = await getImgs(html, url, urlDepth);
-        }
-        // Get additional resources like CSS images, videos, and links
-        html = await getCSSImg(html, "html", url, urlDepth);
-        html = await getVideos(html, url, urlDepth);
-        html = await getLinks(html, url, urlDepth);
-      } catch (err) {
-        console.error("Error in resource download:", err);
-      }
+//       try {
+//         // Download various resources from the webpage
+//         html = await getJavaScript(html, url, urlDepth); // Download external JavaScript files
+//         html = await getCSS(html, url, urlDepth); // Download CSS files
+//         // Download images if the user has not opted to exclude them
+//         if (!isExcludeImages) {
+//           html = await getImgs(html, url, urlDepth);
+//         }
+//         // Get additional resources like CSS images, videos, and links
+//         html = await getCSSImg(html, "html", url, urlDepth);
+//         html = await getVideos(html, url, urlDepth);
+//         html = await getLinks(html, url);
+//       } catch (err) {
+//         console.error("Error in resource download:", err);
+//       }
 
-      return html; // Return the modified HTML
-    } catch (err) {
-      console.error("Error in scraping:", err);
-    }
-  };
+//       return html; // Return the modified HTML
+//     } catch (err) {
+//       console.error("Error in scraping:", err);
+//     }
+//   };
 
-  return await scrape(url); // Start the scraping process and return the result
-}
+//   return await scrape(url); // Start the scraping process and return the result
+// }
