@@ -357,9 +357,9 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
       if (cssText === "Failed") continue;
 
       // ToDo: Implement getCSSImage
-      // cssText = await getCSSImage
+      cssFileText = await getCSS(cssText, "css", absoluteUrl);
 
-      zip.file("css/" + cssFileTitle + ".css");
+      zip.file("css/" + cssFileTitle + ".css", cssFileText);
     } catch(error) {
       console.error(error);
     }
@@ -459,4 +459,75 @@ async function getLinks(inputUrl = currentPage) {
     }
   }
   return tempUrls;
+}
+
+/**
+ * Asynchronously processes CSS or HTML data to extract image URLs, replace them with local paths,
+ * and downloads the images to include in a zip file.
+ * @param {string} data - The CSS or HTML data as a string.
+ * @param {string} place - Specifies whether the data is 'css' or 'html'.
+ * @param {string} urlFile - The base URL to resolve relative paths.
+ * @returns {Promise<string>} - A promise that resolves with the modified data.
+ */
+async function getCSS(data, place, urlFile, urlDepth) {
+  try {
+    // Regular expression to match URLs in background-image properties or img tags.
+    const regex = /url\s*\(\s*/;
+    let bg = data.substring(data.search(regex));
+    let count = 0;
+    while (bg.search(regex) !== -1 && count <= 100) {
+      try {
+        bg = data.substring(data.search(regex));
+        let bgIni = bg.substring(bg.indexOf("url") + 4, bg.indexOf(")"));
+        // Modify the URL to get a clean, absolute URL.
+        let path;
+        if (bgIni.search("xmlns") !== -1) break; // Skip URLs containing "xmlns", which are usually SVG namespaces.
+        if (bgIni.includes("'")) {
+          bgIni = bgIni.substring(
+            bgIni.indexOf("'") + 1,
+            bgIni.lastIndexOf("'")
+          );
+        }
+        if (bgIni.includes('"')) {
+          bgIni = bgIni.substring(
+            bgIni.indexOf('"') + 1,
+            bgIni.lastIndexOf('"')
+          );
+        }
+        if (bgIni.startsWith("//")) {
+          bgIni = "https:" + bgIni;
+        }
+        bgIni = bgIni.replace("\\", "");
+        if (bgIni.startsWith("http")) {
+          path = bgIni;
+        } else {
+          path = getAbsolutePath(bgIni, urlFile); // Resolve relative URLs to absolute URLs.
+        }
+        // Extract the image file name from the URL.
+        let imageName = bgIni.split("/").pop().split("?")[0];
+        imageName = imageName.substring(
+          imageName.length - Math.min(50, imageName.length)
+        );
+        // Replace the URLs in the data with local paths to the images.
+        let newImagePath =
+          place === "css"
+            ? "../img/" + imageName
+            : (urlDepth >= 1 ? "../img/" : "img/") + imageName;
+        data = data.replace(bgIni, newImagePath);
+        // Download the image and include it in the zip file.
+        if (!checkDuplicate(imageName, urlImage)) {
+          urlImage.push({ url: imageName });
+          zip.file("img/" + imageName, urlToPromise(path), { binary: true });
+        }
+        count++;
+        bg = data.substring(data.search(regex) + 20);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    return data;
+  } catch (err) {
+    console.error(err);
+  }
+  return data;
 }
