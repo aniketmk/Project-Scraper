@@ -298,12 +298,12 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
     if (!relativePath.includes("https://"))
       absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
-    let cssFileTitle = getTitle(absoluteUrl);
+    let cssFileName = getTitle(absoluteUrl);
 
     if (maxDepthValue >= 1) {
-      stylesheet.setAttribute("href", "../css/" + cssFileTitle + ".css");
+      stylesheet.setAttribute("href", "../css/" + cssFileName + ".css");
     } else {
-      stylesheet.setAttribute("href", "css/" + cssFileTitle + ".css");
+      stylesheet.setAttribute("href", "css/" + cssFileName + ".css");
     }
 
     html = parsed.documentElement.innerHTML;
@@ -320,7 +320,7 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
       // ToDo: Implement getCSSImage
       cssFileText = await getCSS(cssText, "css", absoluteUrl);
 
-      zip.file("css/" + cssFileTitle + ".css", cssFileText);
+      zip.file("css/" + cssFileName + ".css", cssFileText);
     } catch(error) {
       console.error(error);
     }
