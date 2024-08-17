@@ -171,6 +171,28 @@ async function performLoadingProcess(delay) {
 }
 
 /**
+ * Calculates the download progress percentage.
+ *
+ * @param {number} currentCount - The current count of processed items.
+ * @param {number} totalCount - The total number of items to process.
+ * @returns {string} - The progress percentage as a string.
+ */
+function calculateProgressPercentage(currentCount, totalCount) {
+  if (totalCount === 0) {
+    return "0%";
+  }
+
+  let percentage = Math.ceil((currentCount / totalCount) * 100);
+  if (percentage > 100) {
+    percentage = 100;
+  }
+  // return new Promise((resolve, reject) => { 
+  //   resolve(percentage.toString() + "%");
+  // });
+  return percentage.toString() + "%";
+}
+
+/**
  * This is main function that iterates through the list of all pages and starts scrapping process.
  */
 async function startScrapingProcess() {
@@ -314,7 +336,9 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
       console.error(error);
     }
   }
-  return html;
+  return new Promise((resolve, reject) => {
+    resolve(html);
+  });
 }
 
 /*
@@ -374,7 +398,9 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
       console.error(error);
     }
 
-    return html;
+    return new Promise((resolve, reject) => {
+      resolve(html);
+    });
   }
 }
 
@@ -393,13 +419,13 @@ async function processLinks() {
    * links upto a particular depth
    */ 
   let html = "";
-  if (maxDepthValue === 0) {
+  if (maxDepthValue == 0) {
     html = await processPDFs(currentPage);
     html = await processCSSs(currentPage);
 
     zip.file("html/" + getTitle(currentPage) + ".html", html);
 
-  } else if (maxDepthValue === 1) {
+  } else if (maxDepthValue == 1) {
     await getLinks();
 
     // Link counters
@@ -407,19 +433,24 @@ async function processLinks() {
     let totalCount = urlList.length;
 
     for (let url of urlList) {
+      // Update the progress
+      currentCount++;
+
+      // Update the Percentage
+      const progressPercentage = calculateProgressPercentage(currentCount, totalCount);
+      document.getElementById("current-progress").innerText = progressPercentage;
+      document.getElementById("progress-bar").style.width = progressPercentage;
+
+      // Use requestAnimationFrame to ensure the DOM updates
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
       html = await processPDFs(url, maxDepthValue);
       html = await processCSSs(url, maxDepthValue);
 
       // Store the HTML in the zip object
       zip.file("html/" + getTitle(url) + ".html", html);
-      
-      // Update the progress
-      currentCount++;
-
-      let progressPercentage = calculateProgressPercentage(currentCount, totalCount);
-      document.getElementById("current-progress").innerText = progressPercentage;
-      document.getElementById("progress-bar").style.width = progressPercentage;
     }
+  
   } else {
     let queue = [];
     queue.push(currentPage);
@@ -428,15 +459,37 @@ async function processLinks() {
       while (queue.length) {
         let url = queue.shift();
         let urls = await getLinks(url);
+
+        // Link counters
+        let currentCount = 0;
+        let totalCount = urlList.length;
+
         for (let j of urls) {
-          await processPDFs(j, maxDepthValue);
-          await processCSSs(j, maxDepthValue);
+          // Update the progress
+          currentCount++;
+
+          // Update the Percentage
+          const progressPercentage = calculateProgressPercentage(currentCount, totalCount);
+          document.getElementById("current-progress").innerText = progressPercentage;
+          document.getElementById("progress-bar").style.width = progressPercentage;
+
+          // Process the HTML
+          html = await processPDFs(j, maxDepthValue);
+          html = await processCSSs(j, maxDepthValue);
+
+          // Store the HTML in the zip object
+          zip.file("html/" + getTitle(url) + ".html", html);
+
+          // Store j in the queue for future use
           queue.push(j);
         }
       }
     }
   }
 
+  return new Promise((resolve, reject) => {
+    resolve();
+  });
 }
 
 /**
@@ -489,7 +542,9 @@ async function getLinks(inputUrl = currentPage) {
       urlList.push(absoluteUrl);
     }
   }
-  return tempUrls;
+  return new Promise((resolve, reject) => {
+    resolve(tempUrls);
+  });
 }
 
 /**
