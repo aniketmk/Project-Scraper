@@ -177,123 +177,38 @@ async function startScrapingProcess() {
   // Start to process the links we want to scrape.
   await processLinks();
 
-  // Initialize the first URL and set its depth to 0
-  // urlList[0] = { url: startingURLInput, depth: 0 };
-
-  // // Loop through each URL in the urlList to scrape their HTML content
-  // for (let i = 0; i < urlList.length; i++) {
-  //   // Calculate the progress percentage and update the progress bar and text
-  //   let progressPercentage =
-  //     Math.ceil(((i + 1) / urlList.length) * 100).toString() + "%";
-  //   document.getElementById("current-progress").innerText = progressPercentage;
-  //   document.getElementById("progress-bar").style.width = progressPercentage;
-
-  //   // Attempt to scrape the HTML content from the current URL
-  //   htmlResponse = await scrapeHtml(urlList[i].url, urlList[i].depth);
-
-  //   // Save the scraped HTML content to the zip file
-  //   let filePath = i === 0 ? "" : "html/";
-  //   zip.file(filePath + getTitle(urlList[i].url) + ".html", htmlResponse);
-  // }
-
   // Wait for 3 seconds before continuing
-  // await performLoadingProcess(3000);
+  await performLoadingProcess(3000);
 
   // Generate the zip file name from the hostname of the starting URL
-  // let zipName = new URL(startingURLInput).hostname;
+  let zipName = new URL(startingURLInput).hostname;
 
-  // Generate the zip file and initiate the download process
-  // zip.generateAsync({ type: "blob" }).then((content) => {
-  //   let urlBlob = URL.createObjectURL(content);
+  // Generate the sip file and initiate the download process
+  zip.generateAsync({type: "blob"}.then((content) => {
+    let urlBlob = URL.createObjectURL(content);
 
-  //   // Initiate the download process and catch any errors that occur
-  //   chrome.downloads
-  //     .download({
-  //       url: urlBlob,
-  //       filename: zipName + ".zip",
-  //       saveAs: true,
-  //     })
-  //     .catch((error) => {
-  //       // Log any errors that occur in the download process.
-  //       console.error("Error in Download Process: " + error);
-  //     });
-  // });
+    chrome.downloads
+      .download({
+        url: urlBlob,
+        filename: zipName + ".zip",
+        saveAs: true,
+      })
+      .catch((error) => {
+        // Log any errors that occur in the download process.
+        console.error("Error in Download Process: " + error);
+      });
+  }));
 
   // Add a listener to track the download progress and display the feedback form upon completion
-  // chrome.downloads.onChanged.addListener(function (downloadFile) {
-  //   if (downloadFile.state && downloadFile.state.current === "complete") {
-  //     feedbackFormSection.style.display = "block";
-  //   }
-  // });
+  chrome.downloads.onChanged.addListener(function (downloadFile) {
+    if (downloadFile.state && downloadFile.state.current === "complete") {
+      feedbackFormSection.style.display = "block";
+    }
+  });
 
   // // Reset the download flag and clear the zip variable for future use
-  // setDownloadFlag(false);
-  // zip = new JSZip();
-}
-
-/******************************************************SCRAPING FUNCTIONS - START***********************************************************/
-/*
- * This script parses a given HTML string to find all <link> elements with rel="stylesheet"
- * and prints the absolute URL and filename of the stylesheet link.
- *
- * @param {string} html - The HTML content as a string.
- * @param {number} urlDepth - The depth of the page that needs to be downloaded.
- * @returns {string} - The updated HTML content as a string.
- */
-async function getCSS(html, url, urlDepth) {
-  // Initialize a DOMParser instance
-  let dp = new DOMParser();
-  // Parse the HTML string into a DOM Document object
-  let parsedHTML = dp.parseFromString(html, "text/html");
-  // Find all <link> elements in the parsed HTML
-  let linkElements = parsedHTML.getElementsByTagName("link");
-  // Iterate through each <link> element
-  for (const elementRef of linkElements) {
-    // If the rel attribute is not 'stylesheet', skip this iteration
-    if (elementRef.getAttribute("rel") !== "stylesheet") continue;
-    // Get the href attribute value (might be relative or absolute)
-    let relativePath = elementRef.getAttribute("href");
-    // Initialize element with the absolute URL (if href is already absolute)
-    let element = elementRef.href;
-    // If href does not start with "https://", convert relative path to an absolute path
-    if (relativePath.search("https://") === -1) {
-      element = getAbsolutePath(relativePath, url);
-    }
-    // Get and log the filename of the CSS file
-    let cssFile = getTitle(element);
-    if (urlDepth >= 1) {
-      // If the URL depth is 1 or more, set the href attribute to point to the CSS file
-      // in the parent directory's "css" folder with the respective css file name
-      elementRef.setAttribute("href", "../css/" + cssFile + ".css");
-    } else {
-      // If the URL depth is less than 1, set the href attribute to point to the CSS file
-      // in the "css" folder within the current directory with the respective css file name
-      elementRef.setAttribute("href", "css/" + cssFile + ".css");
-    }
-    // Update the current HTML with the modified href attribute
-    html = parsedHTML.documentElement.innerHTML;
-    // Check if the URL is a duplicate in the urlCSS array, and if so, skip to the next iteration
-    if (checkDuplicate(element, urlCSS)) continue;
-    try {
-      // Add the current URL to the urlCSS array
-      urlCSS.push({ url: element });
-      // Fetch the CSS text data asynchronously
-      let cssText = await getData(element);
-      // If the CSS text data retrieval failed, skip to the next iteration
-      if (cssText === "Failed") continue;
-      // Fetch CSS image data asynchronously and update the cssText
-      cssText = await getCSSImg(cssText, "css", element);
-      // Add the CSS text data to the zip file under the "css" directory with the respective css file name
-      zip.file("css/" + cssFile + ".css", cssText);
-      // Log the filename of the zipped CSS file
-      // console.log("File name of zipped CSS: " + cssFile);
-    } catch (err) {
-      // Log any errors that occur during the try and catch block
-      console.error(err);
-    }
-    // Return the updated HTML
-    return html;
-  }
+  setDownloadFlag(false);
+  zip = new JSZip();
 }
 
 /**
@@ -423,6 +338,107 @@ async function getCSSImg(data, place, urlFile, urlDepth) {
   return data;
 }
 
+/*
+ * Modify HTML to have PDFs linked correctly
+ */
+async function processPDFs(inputUrl, urlDepth = 0, html = "") {
+  // Note the the Process PDFs has started
+  console.log("Processing PDFs");
+
+  // Get the html data for each page
+  html = await getData(inputUrl);
+
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+
+  // Loop through all the links on the found page
+  for (const anchor of parsed.getElementsByTagName("a")) {
+    let absoluteUrl = anchor.href;
+
+    // Exclude any non-PDFs
+    if (!absoluteUrl.includes(".pdf")) {
+      continue;
+    }
+
+    try {
+      let pdfName = getTitle(absoluteUrl);
+
+      zip.file("pdf/" + pdfName, urlToPromise(absoluteUrl), {binary: true});
+      
+      console.log(zip);
+
+      let newHref = maxDepthValue >= 1 ? "../pdf/" + pdfName : "pdf/" + pdfName;
+
+      anchor.setAttribute("href", newHref);
+
+      html = parsed.documentElement.innerHTML;
+    } catch(error) {
+      console.error(error);
+    }
+  }
+  return html;
+}
+
+/*
+ * Process the image files
+ */
+async function processImgs(inputUrl, urlDepth = 0, html = "") {
+
+}
+
+/* 
+ * Process the CSS files
+ */
+async function processCSSs(inputUrl, urlDepth = 0, html = "") {
+  // Note that the CSS is being processed
+  console.log("Processing CSS");
+
+  // Get the html data for each page
+  html = await getData(inputUrl);
+
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+
+  // Iterate through each 
+  for (const stylesheet of parsed.getElementsByTagName("link")) {
+    if (stylesheet.getAttribute("rel") !== "stylesheet") continue;
+
+    let relativePath = stylesheet.getAttribute("href");
+    let absoluteUrl = stylesheet.href;
+
+    if (!relativePath.includes("https://"))
+      absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+
+    let cssFileTitle = getTitle(absoluteUrl);
+
+    if (maxDepthValue >= 1) {
+      stylesheet.setAttribute("href", "../css/" + cssFileTitle + ".css");
+    } else {
+      stylesheet.setAttribute("href", "css/" + cssFileTitle + ".css");
+    }
+
+    html = parsed.documentElement.innerHTML;
+
+    if (urlCSS.includes(absoluteUrl)) continue;
+
+    try {
+      urlCSS.push(absoluteUrl);
+
+      let cssText = await getData(absoluteUrl);
+
+      if (cssText === "Failed") continue;
+
+      // ToDo: Implement getCSSImage
+      // cssText = await getCSSImage
+
+      zip.file("css/" + cssFileTitle + ".css");
+    } catch(error) {
+      console.error(error);
+    }
+
+    return html;
+  }
+}
 
 /**
  * Process the links for each website we intend to download.
@@ -435,9 +451,15 @@ async function processLinks() {
    * links upto a particular depth
    */ 
   if (maxDepthValue === 0) {
-    console.log(currentPage);
+    await processPDFs(currentPage);
+    await processCSSs(currentPage);
   } else if (maxDepthValue === 1) {
     await getLinks();
+
+    for (let url of urlList) {
+      await processPDFs(url, maxDepthValue);
+      await processCSSs(url, maxDepthValue);
+    }
   } else {
     let queue = [];
     queue.push(currentPage);
@@ -447,11 +469,15 @@ async function processLinks() {
         let url = queue.shift();
         let urls = await getLinks(url);
         for (let j of urls) {
+          await processPDFs(j, maxDepthValue);
+          await processCSSs(j, maxDepthValue);
           queue.push(j);
         }
       }
     }
   }
+  console.log(zip);
+
 }
 
 /**
@@ -609,45 +635,3 @@ async function getImgs(html, url, urlDepth) {
   return html;
 }
 
-/******************************************************SCRAPING FUNCTIONS - END*************************************************************/
-
-/**
- * Given the URL and URL depth, updates the zip files and adds more URLs to the list.
- *
- * @param {string} url - The URL to scrape.
- * @param {number} urlDepth - The depth of URLs to scrape.
- * @returns {Promise<string>} - A promise that resolves with the scraped HTML content.
- */
-// async function scrapeHtml(url, urlDepth) {
-//   let html = "";
-
-//   // Nested function to initiate the scraping process
-//   const scrape = async (url) => {
-//     try {
-//       console.log("Scraping URL:", url);
-//       html = await getData(url); // Get the HTML of the URL
-
-//       try {
-//         // Download various resources from the webpage
-//         html = await getJavaScript(html, url, urlDepth); // Download external JavaScript files
-//         html = await getCSS(html, url, urlDepth); // Download CSS files
-//         // Download images if the user has not opted to exclude them
-//         if (!isExcludeImages) {
-//           html = await getImgs(html, url, urlDepth);
-//         }
-//         // Get additional resources like CSS images, videos, and links
-//         html = await getCSSImg(html, "html", url, urlDepth);
-//         html = await getVideos(html, url, urlDepth);
-//         html = await getLinks(html, url);
-//       } catch (err) {
-//         console.error("Error in resource download:", err);
-//       }
-
-//       return html; // Return the modified HTML
-//     } catch (err) {
-//       console.error("Error in scraping:", err);
-//     }
-//   };
-
-//   return await scrape(url); // Start the scraping process and return the result
-// }
