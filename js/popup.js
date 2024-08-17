@@ -306,7 +306,8 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
   console.log("Processing PDFs");
 
   // Get the html data for each page
-  html = await getData(inputUrl);
+  if(html === "")
+    html = await getData(inputUrl);
 
   let parser = new DOMParser();
   let parsed = parser.parseFromString(html, "text/html");
@@ -354,7 +355,8 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
   console.log("Processing CSS");
 
   // Get the html data for each page
-  html = await getData(inputUrl);
+  if(html === "")
+    html = await getData(inputUrl);
 
   let parser = new DOMParser();
   let parsed = parser.parseFromString(html, "text/html");
@@ -402,8 +404,20 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
   }
 }
 
-async function processJavacripts(inputUrl, urlDepth = 0, ) {
+/**
+ * 
+ * @param {*} inputUrl 
+ * @param {*} urlDepth 
+ */
+async function processJavacripts(inputUrl, urlDepth = 0, html = "") {
+   
+  // Get the html data for each page
+  if(html === "")
+    html = await getData(inputUrl);
 
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+ 
 }
 
 /**
@@ -416,21 +430,33 @@ async function processLinks() {
    * approach to traverse 
    * links upto a particular depth
    */ 
-  let html = "";
+  
   if (maxDepthValue == 0) {
-    html = await processPDFs(currentPage);
-    html = await processCSSs(currentPage);
+    // Start the HTML with some value
+    let html = getData(currentPage);
+
+    html = await processPDFs(currentPage, maxDepthValue, html);
+    html = await processCSSs(currentPage, maxDepthValue, html);
 
     zip.file("html/" + getTitle(currentPage) + ".html", html);
 
   } else if (maxDepthValue == 1) {
     await getLinks();
 
+    // Start for the html
+    let html = "";
+
     // Link counters
     let currentCount = 0;
     let totalCount = urlList.length;
 
     for (let url of urlList) {
+      // Set the html value
+      if (html === "")
+        html = getData(currentPage);
+      else 
+        html = getData(url);
+
       // Update the progress
       currentCount++;
 
@@ -442,14 +468,16 @@ async function processLinks() {
       // Use requestAnimationFrame to ensure the DOM updates
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
-      html = await processPDFs(url, maxDepthValue);
-      html = await processCSSs(url, maxDepthValue);
+      html = await processPDFs(url, maxDepthValue, html);
+      html = await processCSSs(url, maxDepthValue, html);
 
       // Store the HTML in the zip object
       zip.file("html/" + getTitle(url) + ".html", html);
     }
   
   } else {
+    // Set a bunch of default values
+    let html = "";
     let queue = [];
     queue.push(currentPage);
 
@@ -463,6 +491,12 @@ async function processLinks() {
         let totalCount = urlList.length;
 
         for (let j of urls) {
+          // Set the html value
+          if (html === "")
+            html = getData(currentPage);
+          else 
+            html = getData(j);
+
           // Update the progress
           currentCount++;
 
@@ -472,11 +506,11 @@ async function processLinks() {
           document.getElementById("progress-bar").style.width = progressPercentage;
 
           // Process the HTML
-          html = await processPDFs(j, maxDepthValue);
-          html = await processCSSs(j, maxDepthValue);
+          html = await processPDFs(j, maxDepthValue, html);
+          html = await processCSSs(j, maxDepthValue, html);
 
           // Store the HTML in the zip object
-          zip.file("html/" + getTitle(url) + ".html", html);
+          zip.file("html/" + getTitle(j) + ".html", html);
 
           // Store j in the queue for future use
           queue.push(j);
