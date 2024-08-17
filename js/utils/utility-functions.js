@@ -83,3 +83,21 @@ function checkDuplicate(url, listUrl) {
   if (typeof listUrl.some !== "function") return false;
   return listUrl.some((item) => item.url === url);
 }
+
+/**
+ * Calculates the download progress percentage.
+ *
+ * @param {number} currentCount - The current count of processed items.
+ * @param {number} totalCount - The total number of items to process.
+ * @returns {string} - The progress percentage as a string.
+ */
+function calculateProgressPercentage(currentCount, totalCount) {
+  if (totalCount === 0) {
+    return "0%";
+  }
+  let percentage = Math.ceil((currentCount / totalCount) * 100);
+  if (percentage > 100) {
+    percentage = 100;
+  }
+  return percentage.toString() + "%";
+}

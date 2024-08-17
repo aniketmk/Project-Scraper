@@ -154,11 +154,11 @@ let zip = new JSZip();
  * @param {number} delay - The delay in milliseconds before the function executes.
  * @returns {Promise} - A promise that resolves if the current progress is 100%.
  */
-function performLoadingProcess(delay) {
+async function performLoadingProcess(delay) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       // Checking if the current progress is at 100%
-      if (document.getElementById("current-progress").innerText === "100%") {
+      if (document.getElementById("current-progress").innerText === "100%" || maxDepthValue === 0) {
         // Resetting the progress text and bar to 0%
         document.getElementById("current-progress").innerText = "0%";
         document.getElementById("progress-bar").style.width = "0%";
@@ -183,10 +183,12 @@ async function startScrapingProcess() {
   // Generate the zip file name from the hostname of the starting URL
   let zipName = new URL(startingURLInput).hostname;
 
-  // Generate the sip file and initiate the download process
-  zip.generateAsync({type: "blob"}.then((content) => {
+  // Generate the zip file and initiate the download process
+  zip.generateAsync({ type: "blob" }).then((content) => {
+    console.log("ZIP Download Process");
     let urlBlob = URL.createObjectURL(content);
 
+    // Initiate the download process and catch any errors that occur
     chrome.downloads
       .download({
         url: urlBlob,
@@ -197,7 +199,7 @@ async function startScrapingProcess() {
         // Log any errors that occur in the download process.
         console.error("Error in Download Process: " + error);
       });
-  }));
+  });
 
   // Add a listener to track the download progress and display the feedback form upon completion
   chrome.downloads.onChanged.addListener(function (downloadFile) {
@@ -266,6 +268,14 @@ async function getJavaScript(html, url, urlDepth) {
   // Return the updated HTML string
   return html;
 }
+
+/*
+ * Process all html pages
+ */
+async function processHtmls(inputUrl, urlDepth = 0, html = "") {
+
+}
+
 
 
 /*
@@ -368,6 +378,10 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
   }
 }
 
+async function processJavacripts(inputUrl, urlDepth = 0, ) {
+
+}
+
 /**
  * Process the links for each website we intend to download.
  */
@@ -378,15 +392,33 @@ async function processLinks() {
    * approach to traverse 
    * links upto a particular depth
    */ 
+  let html = "";
   if (maxDepthValue === 0) {
-    await processPDFs(currentPage);
-    await processCSSs(currentPage);
+    html = await processPDFs(currentPage);
+    html = await processCSSs(currentPage);
+
+    zip.file("html/" + getTitle(currentPage) + ".html", html);
+
   } else if (maxDepthValue === 1) {
     await getLinks();
 
+    // Link counters
+    let currentCount = 0;
+    let totalCount = urlList.length;
+
     for (let url of urlList) {
-      await processPDFs(url, maxDepthValue);
-      await processCSSs(url, maxDepthValue);
+      html = await processPDFs(url, maxDepthValue);
+      html = await processCSSs(url, maxDepthValue);
+
+      // Store the HTML in the zip object
+      zip.file("html/" + getTitle(url) + ".html", html);
+      
+      // Update the progress
+      currentCount++;
+
+      let progressPercentage = calculateProgressPercentage(currentCount, totalCount);
+      document.getElementById("current-progress").innerText = progressPercentage;
+      document.getElementById("progress-bar").style.width = progressPercentage;
     }
   } else {
     let queue = [];
@@ -404,7 +436,6 @@ async function processLinks() {
       }
     }
   }
-  console.log(zip);
 
 }
 
@@ -427,10 +458,10 @@ async function getLinks(inputUrl = currentPage) {
   let parsed = parser.parseFromString(html, "text/html");
 
   // Search for all the urls on the first given page
-  for (let anchor of parsed.getElementsByTagName("a")) {
+  for (const anchor of parsed.getElementsByTagName("a")) {
     let relative = anchor.getAttribute("href");
     let absoluteUrl = anchor.href;
-
+    
     // Skip a bunch of unneeded links
     if (
       absoluteUrl.includes("mailto") ||
