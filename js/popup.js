@@ -298,8 +298,6 @@ async function processHtmls(inputUrl, urlDepth = 0, html = "") {
 
 }
 
-
-
 /*
  * Modify HTML to have PDFs linked correctly
  */
