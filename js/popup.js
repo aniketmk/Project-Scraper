@@ -186,9 +186,6 @@ function calculateProgressPercentage(currentCount, totalCount) {
   if (percentage > 100) {
     percentage = 100;
   }
-  // return new Promise((resolve, reject) => { 
-  //   resolve(percentage.toString() + "%");
-  // });
   return percentage.toString() + "%";
 }
 
@@ -236,13 +233,6 @@ async function startScrapingProcess() {
 }
 
 /*
- * Process all html pages
- */
-async function processHtmls(inputUrl, urlDepth = 0, html = "") {
-
-}
-
-/*
  * Modify HTML to have PDFs linked correctly
  */
 async function processPDFs(inputUrl, urlDepth = 0, html = "") {
@@ -282,13 +272,6 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
   return new Promise((resolve, reject) => {
     resolve(html);
   });
-}
-
-/*
- * Process the image files
- */
-async function processImgs(inputUrl, urlDepth = 0, html = "") {
-
 }
 
 /* 
