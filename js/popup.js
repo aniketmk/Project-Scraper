@@ -235,62 +235,6 @@ async function startScrapingProcess() {
   zip = new JSZip();
 }
 
-/**
- * Asynchronous function to retrieve JavaScript files from script tags within the provided HTML string,
- * adjust their paths based on the URL depth, check for duplicates, and add non-duplicate scripts to a zip file.
- *
- * @param {string} html - The HTML content as a string.
- * @param {number} urlDepth - The depth of the page that needs to be downloaded.
- * @returns {string} - The updated HTML content as a string.
- */
-async function getJavaScript(html, url, urlDepth) {
-  // Initialize a DOMParser instance
-  let dp = new DOMParser();
-  // Parse the HTML string to a DOM Document object
-  let parsedHTML = dp.parseFromString(html, "text/html");
-  // Get all script elements from the parsed HTML
-  let scriptElements = parsedHTML.getElementsByTagName("script");
-  // Iterate through all the script elements
-  for (const elementRef of scriptElements) {
-    // Get the "src" attribute value of the current script element
-    let elementSrc = elementRef.getAttribute("src");
-    // If the "src" attribute is null, skip this iteration
-    if (elementSrc === null) continue;
-    // Convert relative URLs to absolute URLs
-    if (elementSrc.toString().search("https://") === -1) {
-      elementSrc = getAbsolutePath(elementSrc, url);
-    }
-    // Get the file name of the script and the last part of its URL
-    let scriptFile = getTitle(elementSrc);
-    let eString = elementSrc.toString();
-    let lastPart = eString.substring(eString.lastIndexOf("/") + 1);
-    // Update the "src" attribute in the HTML based on the URL depth
-    if (urlDepth >= 1) {
-      elementRef.setAttribute("src", "../js/" + scriptFile + ".js");
-    } else {
-      elementRef.setAttribute("src", "js/" + scriptFile + ".js");
-    }
-    // Update the HTML string with the modified script element
-    html = parsedHTML.documentElement.innerHTML;
-    // Check for duplicate script URLs and skip them
-    if (checkDuplicate(lastPart, urlJS)) continue;
-    try {
-      // Add the script URL to the tracking array
-      urlJS.push({ url: lastPart });
-      // Asynchronously fetch the script content
-      let scriptText = await getData(elementSrc);
-      if (scriptText === "Failed") continue;
-      // Add the script content to the zip file
-      zip.file("js/" + scriptFile + ".js", scriptText);
-    } catch (err) {
-      // Log errors that occur during the fetching and zipping process
-      console.error(err);
-    }
-  }
-  // Return the updated HTML string
-  return html;
-}
-
 /*
  * Process all html pages
  */
@@ -405,19 +349,71 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
 }
 
 /**
+ * Function which pulls all of the javascript files into the downloaded zip
  * 
- * @param {*} inputUrl 
- * @param {*} urlDepth 
+ * @param {string} inputUrl - The imput inputUrl for for which to search
+ * @param {int} urlDepth - The depth of this search
  */
 async function processJavacripts(inputUrl, urlDepth = 0, html = "") {
-   
+  // Note that we are processing Javascript Files
+  console.log("Processing Javascripts");
+
   // Get the html data for each page
   if(html === "")
     html = await getData(inputUrl);
 
+  // Initialize a DOMParser
   let parser = new DOMParser();
   let parsed = parser.parseFromString(html, "text/html");
  
+  // Get all of the script elements from the parsed HTML
+  // and iterate through them all
+  for( const script of parsed.getElementsByTagName("script")) {
+    // Get the "src" attribute vaue of the current script element
+    let scriptSrc = script.getAttribute("src");
+
+    // If the "src" attribute is null skip that iteration
+    if (scriptSrc === null) continue;
+
+    // Convert relative URLs to absolute URLs
+    if (scriptSrc.toString().search("https://") === -1)
+      scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
+
+    // Get the file name of the script and the last part of its URL
+    let scriptFileName = getTitle(scriptSrc);
+    let scriptString = scriptSrc.toString();
+    let lastPart = scriptString.substring(scriptString.lastIndexOf("/") + 1);
+
+    // Update the "src" attribute in the HTML based on the URL depth
+    if (maxDepthValue >= 1) 
+      script.setAttribute("src", "../js/" + scriptFileName + ".js");
+    else 
+      script.setAttribute("src", "js/" + scriptFileName + ".js");
+
+    // Update the HTML string with the modified script element
+    html = parsed.documentElement.innerHTML;
+
+    // Check for duplicate script URLs and skip them
+    if (checkDuplicate(lastPart, urlJS)) continue;
+
+    try {
+      // Add the script URL to the tracking array
+      urlJS.push({ url: lastPart });
+      // Asynchronously fetch the script content
+      let scriptText = await getData(scriptSrc);
+      if (scriptText === "Failed") continue;
+      // Add the script content to the zip file
+      zip.file("js/" + scriptFileName + ".js", scriptText);
+    } catch (err) {
+      // Log errors that occur during the fetching and zipping process
+      console.error(err);
+    }
+  }
+
+  // Return the Update HTML string
+  return new Promise((resolve, reject) => {
+    resolve(html);
+  });
 }
 
 /**
@@ -437,6 +433,7 @@ async function processLinks() {
 
     html = await processPDFs(currentPage, maxDepthValue, html);
     html = await processCSSs(currentPage, maxDepthValue, html);
+    html = await processJavacripts(currentPage, maxDepthValue, html);
 
     zip.file("html/" + getTitle(currentPage) + ".html", html);
 
@@ -470,6 +467,7 @@ async function processLinks() {
 
       html = await processPDFs(url, maxDepthValue, html);
       html = await processCSSs(url, maxDepthValue, html);
+      html = await processJavacripts(url, maxDepthValue, html);
 
       // Store the HTML in the zip object
       zip.file("html/" + getTitle(url) + ".html", html);
@@ -508,6 +506,7 @@ async function processLinks() {
           // Process the HTML
           html = await processPDFs(j, maxDepthValue, html);
           html = await processCSSs(j, maxDepthValue, html);
+          html = await processJavacripts(j, maxDepthValue, html);
 
           // Store the HTML in the zip object
           zip.file("html/" + getTitle(j) + ".html", html);
