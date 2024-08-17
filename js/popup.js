@@ -267,76 +267,6 @@ async function getJavaScript(html, url, urlDepth) {
   return html;
 }
 
-/**
- * Asynchronously processes CSS or HTML data to extract image URLs, replace them with local paths,
- * and downloads the images to include in a zip file.
- * @param {string} data - The CSS or HTML data as a string.
- * @param {string} place - Specifies whether the data is 'css' or 'html'.
- * @param {string} urlFile - The base URL to resolve relative paths.
- * @returns {Promise<string>} - A promise that resolves with the modified data.
- */
-async function getCSSImg(data, place, urlFile, urlDepth) {
-  try {
-    // Regular expression to match URLs in background-image properties or img tags.
-    const regex = /url\s*\(\s*/;
-    let bg = data.substring(data.search(regex));
-    let count = 0;
-    while (bg.search(regex) !== -1 && count <= 100) {
-      try {
-        bg = data.substring(data.search(regex));
-        let bgIni = bg.substring(bg.indexOf("url") + 4, bg.indexOf(")"));
-        // Modify the URL to get a clean, absolute URL.
-        let path;
-        if (bgIni.search("xmlns") !== -1) break; // Skip URLs containing "xmlns", which are usually SVG namespaces.
-        if (bgIni.includes("'")) {
-          bgIni = bgIni.substring(
-            bgIni.indexOf("'") + 1,
-            bgIni.lastIndexOf("'")
-          );
-        }
-        if (bgIni.includes('"')) {
-          bgIni = bgIni.substring(
-            bgIni.indexOf('"') + 1,
-            bgIni.lastIndexOf('"')
-          );
-        }
-        if (bgIni.startsWith("//")) {
-          bgIni = "https:" + bgIni;
-        }
-        bgIni = bgIni.replace("\\", "");
-        if (bgIni.startsWith("http")) {
-          path = bgIni;
-        } else {
-          path = getAbsolutePath(bgIni, urlFile); // Resolve relative URLs to absolute URLs.
-        }
-        // Extract the image file name from the URL.
-        let imageName = bgIni.split("/").pop().split("?")[0];
-        imageName = imageName.substring(
-          imageName.length - Math.min(50, imageName.length)
-        );
-        // Replace the URLs in the data with local paths to the images.
-        let newImagePath =
-          place === "css"
-            ? "../img/" + imageName
-            : (urlDepth >= 1 ? "../img/" : "img/") + imageName;
-        data = data.replace(bgIni, newImagePath);
-        // Download the image and include it in the zip file.
-        if (!checkDuplicate(imageName, urlImage)) {
-          urlImage.push({ url: imageName });
-          zip.file("img/" + imageName, urlToPromise(path), { binary: true });
-        }
-        count++;
-        bg = data.substring(data.search(regex) + 20);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    return data;
-  } catch (err) {
-    console.error(err);
-  }
-  return data;
-}
 
 /*
  * Modify HTML to have PDFs linked correctly
@@ -364,8 +294,6 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
       let pdfName = getTitle(absoluteUrl);
 
       zip.file("pdf/" + pdfName, urlToPromise(absoluteUrl), {binary: true});
-      
-      console.log(zip);
 
       let newHref = maxDepthValue >= 1 ? "../pdf/" + pdfName : "pdf/" + pdfName;
 
@@ -508,7 +436,6 @@ async function getLinks(inputUrl = currentPage) {
       absoluteUrl.includes("mailto") ||
       absoluteUrl.includes("tel") ||
       absoluteUrl.includes("#") ||
-      checkDuplicate(absoluteUrl, urlList) ||
       absoluteUrl.length === 0
     )
       continue;
@@ -533,105 +460,3 @@ async function getLinks(inputUrl = currentPage) {
   }
   return tempUrls;
 }
-
-/**
- * Asynchronously processes HTML data to find and modify <iframe> elements to point to local video files,
- * and downloads video files to include in a zip file.
- *
- * @param {string} html - The HTML data as a string.
- * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
- */
-async function getVideos(html, url, urlDepth) {
-  try {
-    // Initialize a new DOMParser instance
-    let dp = new DOMParser();
-    // Parse the HTML string into a DOM object
-    let parsed = dp.parseFromString(html, "text/html");
-    // Get all iframe elements within the parsed HTML
-    let testVideoElements = parsed.getElementsByTagName("iframe");
-    // Convert the HTMLCollection to an array and iterate over each iframe element
-    Array.from(testVideoElements).forEach(async (video) => {
-      // Get the 'src' attribute of the iframe element
-      let src = video.getAttribute("src");
-      // If src attribute is null, exit early from this iteration
-      if (src === null) return;
-      // Extract the video name from the src URL and sanitize it
-      let videoName = src
-        .substring(src.lastIndexOf("/") + 1)
-        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
-      // Check if the video is a duplicate and if not, add it to the list and prepare for download
-      if (!checkDuplicate(videoName, urlVideo)) {
-        urlVideo.push({ url: videoName });
-        // Adjust the src URL to ensure it's an absolute URL
-        if (src.includes("//")) {
-          src = "https:" + src.substring(src.indexOf("//"));
-        } else {
-          src = getAbsolutePath(src, url);
-        }
-        // Add the video file to the zip
-        zip.file("video/" + videoName, urlToPromise(src), { binary: true });
-      }
-      // Set the src attribute of the iframe to point to the local video file
-      let newSrcPath = urlDepth >= 1 ? "../video/" : "video/";
-      video.setAttribute("src", newSrcPath + videoName);
-    });
-    // Update the HTML string to reflect the changes made
-    html = parsed.documentElement.innerHTML;
-    return html;
-  } catch (err) {
-    // Log any errors encountered during the process
-    console.error(err);
-  }
-  // Return the (potentially unmodified) HTML string
-  return html;
-}
-
-/**
- * Asynchronously processes HTML data to find and modify <img> elements to point to local image files,
- * and downloads image files to include in a zip file.
- *
- * @param {string} html - The HTML data as a string.
- * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
- */
-async function getImgs(html, url, urlDepth) {
-  try {
-    // Parse the HTML string to a DOM object
-    let dp = new DOMParser();
-    let parsed = dp.parseFromString(html, "text/html");
-    let testImageElements = parsed.getElementsByTagName("img");
-    // Iterate over each image element and process it
-    Array.from(testImageElements).forEach(async (img) => {
-      let src = img.getAttribute("src");
-      // If src attribute is null or a base64 encoded image, skip this iteration
-      if (src === null || src.includes("base64")) return;
-      // Extract the image name from the src URL and sanitize it
-      let imageName = src
-        .substring(src.lastIndexOf("/") + 1)
-        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
-      // Check if the image is a duplicate and if not, add it to the list and prepare for download
-      if (!checkDuplicate(imageName, urlImage)) {
-        urlImage.push({ url: imageName });
-        // Adjust the src URL to ensure it's an absolute URL
-        if (src.includes("//")) {
-          src = "https:" + src.substring(src.indexOf("//"));
-        } else {
-          src = getAbsolutePath(src, url);
-        }
-        // Add the image file to the zip
-        zip.file("img/" + imageName, urlToPromise(src), { binary: true });
-      }
-      // Set the src attribute of the img to point to the local image file
-      let newSrcPath = urlDepth >= 1 ? "../img/" : "img/";
-      img.setAttribute("src", newSrcPath + imageName);
-    });
-    // Update the HTML string to reflect the changes made
-    html = parsed.documentElement.innerHTML;
-    return html;
-  } catch (err) {
-    // Log any errors encountered during the process
-    console.error(err);
-  }
-  // Return the (potentially unmodified) HTML string
-  return html;
-}
-
