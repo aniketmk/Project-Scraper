@@ -300,11 +300,8 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
 
     let cssFileName = getTitle(absoluteUrl);
 
-    if (maxDepthValue >= 1) {
-      stylesheet.setAttribute("href", "../css/" + cssFileName + ".css");
-    } else {
-      stylesheet.setAttribute("href", "css/" + cssFileName + ".css");
-    }
+    // Set the file location for each css file
+    stylesheet.setAttribute("href", "../css/" + cssFileName + ".css");
 
     html = parsed.documentElement.innerHTML;
 
