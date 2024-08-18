@@ -290,12 +290,18 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
 
   // Iterate through each 
   for (const stylesheet of parsed.getElementsByTagName("link")) {
+    // Skip everything that is not a stylesheet
     if (stylesheet.getAttribute("rel") !== "stylesheet") continue;
 
     let relativePath = stylesheet.getAttribute("href");
     let absoluteUrl = stylesheet.href;
 
     if (!relativePath.includes("https://"))
+      absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+
+    // Assure that the chrome-extension Urls are corrected to the absolute urls
+    if (absoluteUrl.includes("chrome-extension://" + extId) ||
+      absoluteUrl.includes("chrome-extension://"))
       absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
     let cssFileName = getTitle(absoluteUrl);
@@ -322,10 +328,10 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
       console.error(error);
     }
 
-    return new Promise((resolve, reject) => {
-      resolve(html);
-    });
   }
+  return new Promise((resolve, reject) => {
+    resolve(html);
+  });
 }
 
 /**
@@ -408,7 +414,7 @@ async function processLinks() {
     // Start the HTML with some value
     let html = getData(currentPage);
 
-    html = await getCSS(html, "html", currentPage, maxDepthValue);
+    html = await getCSS(html, "html", currentPage);
     html = await processPDFs(currentPage, maxDepthValue, html);
     html = await processCSSs(currentPage, maxDepthValue, html);
     html = await processJavacripts(currentPage, maxDepthValue, html);
@@ -443,7 +449,7 @@ async function processLinks() {
       // Use requestAnimationFrame to ensure the DOM updates
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
-      html = await getCSS(html, "html", url, maxDepthValue);
+      html = await getCSS(html, "html", url);
       html = await processPDFs(url, maxDepthValue, html);
       html = await processCSSs(url, maxDepthValue, html);
       html = await processJavacripts(url, maxDepthValue, html);
@@ -483,7 +489,7 @@ async function processLinks() {
           document.getElementById("progress-bar").style.width = progressPercentage;
 
           // Process the HTML
-          html = await getCSS(html, "html", j, maxDepthValue);
+          html = await getCSS(html, "html", j);
           html = await processPDFs(j, maxDepthValue, html);
           html = await processCSSs(j, maxDepthValue, html);
           html = await processJavacripts(j, maxDepthValue, html);
@@ -505,7 +511,7 @@ async function processLinks() {
 
 /**
  * Asynchronously processes HTML data to find and modify links to point to local files,
- * and downloads linked PDF files to include in a zip file. The function is recursive
+ * nd downloads linked PDF files to include in a zip file. The function is recursive
  * and will scrape links up to a specified maximum depth.
  *
  * @param {string} inputUrl - The input or current page within the tab also works for multiple links.
@@ -566,15 +572,18 @@ async function getLinks(inputUrl = currentPage) {
  * @param {string} urlFile - The base URL to resolve relative paths.
  * @returns {Promise<string>} - A promise that resolves with the modified data.
  */
-async function getCSS(data, place, urlFile, urlDepth) {
+async function getCSS(data, place, urlFile) {
+  // Exit out if this is not a string
+  if (typeof data === "object") return;
+
   try {
     // Regular expression to match URLs in background-image properties or img tags.
     const regex = /url\s*\(\s*/;
-    let bg = data.substring(data.search(regex));
+    let bg = data.substring(data.match(regex));
     let count = 0;
     while (bg.search(regex) !== -1 && count <= 100) {
       try {
-        bg = data.substring(data.search(regex));
+        bg = data.substring(data.match(regex));
         let bgIni = bg.substring(bg.indexOf("url") + 4, bg.indexOf(")"));
         // Modify the URL to get a clean, absolute URL.
         let path;
@@ -606,10 +615,7 @@ async function getCSS(data, place, urlFile, urlDepth) {
           imageName.length - Math.min(50, imageName.length)
         );
         // Replace the URLs in the data with local paths to the images.
-        let newImagePath =
-          place === "css"
-            ? "../img/" + imageName
-            : (urlDepth >= 1 ? "../img/" : "img/") + imageName;
+        let newImagePath = "../img/" + imageName;
         data = data.replace(bgIni, newImagePath);
         // Download the image and include it in the zip file.
         if (!checkDuplicate(imageName, urlImage)) {
@@ -617,7 +623,7 @@ async function getCSS(data, place, urlFile, urlDepth) {
           zip.file("img/" + imageName, urlToPromise(path), { binary: true });
         }
         count++;
-        bg = data.substring(data.search(regex) + 20);
+        bg = data.substring(data.match(regex) + 20);
       } catch (err) {
         console.error(err);
       }
@@ -626,5 +632,7 @@ async function getCSS(data, place, urlFile, urlDepth) {
   } catch (err) {
     console.error(err);
   }
-  return data;
+  return new Promise((resolve, reject) => {
+    resolve(data);
+  });
 }
