@@ -368,10 +368,7 @@ async function processJavacripts(inputUrl, urlDepth = 0, html = "") {
     let lastPart = scriptString.substring(scriptString.lastIndexOf("/") + 1);
 
     // Update the "src" attribute in the HTML based on the URL depth
-    if (maxDepthValue >= 1) 
-      script.setAttribute("src", "../js/" + scriptFileName + ".js");
-    else 
-      script.setAttribute("src", "js/" + scriptFileName + ".js");
+    script.setAttribute("src", "../js/" + scriptFileName + ".js");
 
     // Update the HTML string with the modified script element
     html = parsed.documentElement.innerHTML;
@@ -414,6 +411,7 @@ async function processLinks() {
     // Start the HTML with some value
     let html = getData(currentPage);
 
+    html = await getCSS(html, "html", currentPage, maxDepthValue);
     html = await processPDFs(currentPage, maxDepthValue, html);
     html = await processCSSs(currentPage, maxDepthValue, html);
     html = await processJavacripts(currentPage, maxDepthValue, html);
@@ -448,6 +446,7 @@ async function processLinks() {
       // Use requestAnimationFrame to ensure the DOM updates
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
+      html = await getCSS(html, "html", url, maxDepthValue);
       html = await processPDFs(url, maxDepthValue, html);
       html = await processCSSs(url, maxDepthValue, html);
       html = await processJavacripts(url, maxDepthValue, html);
@@ -487,6 +486,7 @@ async function processLinks() {
           document.getElementById("progress-bar").style.width = progressPercentage;
 
           // Process the HTML
+          html = await getCSS(html, "html", j, maxDepthValue);
           html = await processPDFs(j, maxDepthValue, html);
           html = await processCSSs(j, maxDepthValue, html);
           html = await processJavacripts(j, maxDepthValue, html);
