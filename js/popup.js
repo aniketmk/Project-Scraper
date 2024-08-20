@@ -131,6 +131,10 @@ let urlImage = [];
 let urlVideo = [];
 let urlJS = [];
 
+// Keep track of base count for when links are at 0 depth
+let zeroDepthCounter = 0;
+let totalZeroDepthCounter = 0;
+
 // Flag to track if the scraping is completed
 let scrapingDone = false;
 
@@ -187,6 +191,54 @@ function calculateProgressPercentage(currentCount, totalCount) {
     percentage = 100;
   }
   return percentage.toString() + "%";
+}
+
+/**
+ * This function basically keeps track of count of an estimate for
+ * the page when things are at zero depth.
+ * 
+ * @param {*} inputUrl - The url which 
+ */
+async function zeroDepthCounterEstimator(inputUrl) {
+  // Setup some basic stuff for getting information out of the page
+  let html = await getData(inputUrl);
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+
+  // Get the total number of links for css, pdf and javascript for an estimate
+  let cssTotal = parsed.querySelectorAll("link[rel='stylesheet']").length;;
+  let pdfTotal = 
+    Array.from(parsed.getElementsByTagName("a")).filter((element) => element.href.includes(".pdf")).length;
+  let javascriptTotal = 
+    Array.from(parsed.getElementsByTagName("script")).filter((element) => element.hasAttribute("src")).length;
+
+  // Set the total amount for zero depth
+  totalZeroDepthCounter = cssTotal + pdfTotal + javascriptTotal;
+
+  return new Promise((resolve, reject) => {
+    resolve();
+  });
+}
+
+/** 
+ * Updates the progress bar for zero depths
+ */
+async function zeroDepthCounterUpdate() {
+  if (maxDepthValue == 0) {
+    // Use requestAnimationFrame to ensure the DOM updates
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    // Update the progress
+    console.log("Progress Update");
+    zeroDepthCounter++;
+    const progressPercentage = calculateProgressPercentage(zeroDepthCounter, totalZeroDepthCounter);
+    document.getElementById("current-progress").innerText = progressPercentage;
+    document.getElementById("progress-bar").style.width = progressPercentage;
+  }
+
+  return new Promise((resolve, reject) => {
+    resolve();
+  });
 }
 
 /**
@@ -250,6 +302,9 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
   for (const anchor of parsed.getElementsByTagName("a")) {
     let absoluteUrl = anchor.href;
 
+    // Update the progress bar for zero depths
+    await zeroDepthCounterUpdate();
+    
     // Exclude any non-PDFs
     if (!absoluteUrl.includes(".pdf")) {
       continue;
@@ -296,6 +351,10 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
     let relativePath = stylesheet.getAttribute("href");
     let absoluteUrl = stylesheet.href;
 
+    // Update the progress bar for zero depths
+    await zeroDepthCounterUpdate();
+
+    // Check if the path includes https and set the correct absoluteUrl
     if (!relativePath.includes("https://"))
       absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
@@ -361,6 +420,9 @@ async function processJavacripts(inputUrl, urlDepth = 0, html = "") {
     // If the "src" attribute is null skip that iteration
     if (scriptSrc === null) continue;
 
+    // Update the progress bar for zero depths
+    await zeroDepthCounterUpdate();
+
     // Convert relative URLs to absolute URLs
     if (scriptSrc.toString().search("https://") === -1)
       scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
@@ -411,6 +473,9 @@ async function processLinks() {
    */ 
   
   if (maxDepthValue == 0) {
+    // Get the total estimate of links to go through
+    await zeroDepthCounterEstimator(currentPage);
+
     // Start the HTML with some value
     let html = getData(currentPage);
 
@@ -420,6 +485,10 @@ async function processLinks() {
     html = await processJavacripts(currentPage, maxDepthValue, html);
 
     zip.file("html/" + getTitle(currentPage) + ".html", html);
+
+    // Reset the zero depth information
+    zeroDepthCounter = 0;
+    totalZeroDepthCounter = 0;
 
   } else if (maxDepthValue == 1) {
     await getLinks();
