@@ -197,6 +197,8 @@ function calculateProgressPercentage(currentCount, totalCount) {
  * This function basically keeps track of count of an estimate for
  * the page when things are at zero depth.
  * 
+ * ToDo: This function should probably be a standard for all calculations
+ * 
  * @param {*} inputUrl - The url which 
  */
 async function zeroDepthCounterEstimator(inputUrl) {
