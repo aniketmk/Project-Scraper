@@ -145,7 +145,7 @@ let extId = chrome.runtime.id;
 let maxDepthValue = 0;
 
 depthMode.addEventListener("change", () => {
-   maxDepthValue = depthMode.value;
+  maxDepthValue = depthMode.value;
 });
 
 // Create a new JSZip instance to hold the zipped contents
@@ -162,7 +162,10 @@ async function performLoadingProcess(delay) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       // Checking if the current progress is at 100%
-      if (document.getElementById("current-progress").innerText === "100%" || maxDepthValue === 0) {
+      if (
+        document.getElementById("current-progress").innerText === "100%" ||
+        maxDepthValue === 0
+      ) {
         // Resetting the progress text and bar to 0%
         document.getElementById("current-progress").innerText = "0%";
         document.getElementById("progress-bar").style.width = "0%";
@@ -196,10 +199,10 @@ function calculateProgressPercentage(currentCount, totalCount) {
 /**
  * This function basically keeps track of count of an estimate for
  * the page when things are at zero depth.
- * 
+ *
  * ToDo: This function should probably be a standard for all calculations
- * 
- * @param {*} inputUrl - The url which 
+ *
+ * @param {*} inputUrl - The url which
  */
 async function zeroDepthCounterEstimator(inputUrl) {
   // Setup some basic stuff for getting information out of the page
@@ -208,21 +211,26 @@ async function zeroDepthCounterEstimator(inputUrl) {
   let parsed = parser.parseFromString(html, "text/html");
 
   // Get the total number of links for css, pdf and javascript for an estimate
-  let cssTotal = parsed.querySelectorAll("link[rel='stylesheet']").length;;
-  let pdfTotal = 
-    Array.from(parsed.getElementsByTagName("a")).filter((element) => element.href.includes(".pdf")).length;
-  let javascriptTotal = 
-    Array.from(parsed.getElementsByTagName("script")).filter((element) => element.hasAttribute("src")).length;
+  let cssTotal = parsed.querySelectorAll("link[rel='stylesheet']").length;
+  let pdfTotal = Array.from(parsed.getElementsByTagName("a")).filter(
+    (element) => element.href.includes(".pdf")
+  ).length;
+  let javascriptTotal = Array.from(
+    parsed.getElementsByTagName("script")
+  ).filter((element) => element.hasAttribute("src")).length;
+  let videoTotal = Array.from(
+    parsed.getElementsByTagName("iframe")
+  ).filter((element) => element.hasAttribute("src")).length;
 
   // Set the total amount for zero depth
-  totalZeroDepthCounter = cssTotal + pdfTotal + javascriptTotal;
+  totalZeroDepthCounter = cssTotal + pdfTotal + javascriptTotal + videoTotal;
 
   return new Promise((resolve, reject) => {
     resolve();
   });
 }
 
-/** 
+/**
  * Updates the progress bar for zero depths
  */
 async function zeroDepthCounterUpdate() {
@@ -233,7 +241,10 @@ async function zeroDepthCounterUpdate() {
     // Update the progress
     console.log("Progress Update");
     zeroDepthCounter++;
-    const progressPercentage = calculateProgressPercentage(zeroDepthCounter, totalZeroDepthCounter);
+    const progressPercentage = calculateProgressPercentage(
+      zeroDepthCounter,
+      totalZeroDepthCounter
+    );
     document.getElementById("current-progress").innerText = progressPercentage;
     document.getElementById("progress-bar").style.width = progressPercentage;
   }
@@ -294,8 +305,7 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
   console.log("Processing PDFs");
 
   // Get the html data for each page
-  if(html === "")
-    html = await getData(inputUrl);
+  if (html === "") html = await getData(inputUrl);
 
   let parser = new DOMParser();
   let parsed = parser.parseFromString(html, "text/html");
@@ -306,7 +316,7 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
 
     // Update the progress bar for zero depths
     await zeroDepthCounterUpdate();
-    
+
     // Exclude any non-PDFs
     if (!absoluteUrl.includes(".pdf")) {
       continue;
@@ -315,14 +325,14 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
     try {
       let pdfName = getTitle(absoluteUrl);
 
-      zip.file("pdf/" + pdfName, urlToPromise(absoluteUrl), {binary: true});
+      zip.file("pdf/" + pdfName, urlToPromise(absoluteUrl), { binary: true });
 
       let newHref = maxDepthValue >= 1 ? "../pdf/" + pdfName : "pdf/" + pdfName;
 
       anchor.setAttribute("href", newHref);
 
       html = parsed.documentElement.innerHTML;
-    } catch(error) {
+    } catch (error) {
       console.error(error);
     }
   }
@@ -331,7 +341,7 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
   });
 }
 
-/* 
+/*
  * Process the CSS files
  */
 async function processCSSs(inputUrl, urlDepth = 0, html = "") {
@@ -339,13 +349,12 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
   console.log("Processing CSS");
 
   // Get the html data for each page
-  if(html === "")
-    html = await getData(inputUrl);
+  if (html === "") html = await getData(inputUrl);
 
   let parser = new DOMParser();
   let parsed = parser.parseFromString(html, "text/html");
 
-  // Iterate through each 
+  // Iterate through each
   for (const stylesheet of parsed.getElementsByTagName("link")) {
     // Skip everything that is not a stylesheet
     if (stylesheet.getAttribute("rel") !== "stylesheet") continue;
@@ -361,8 +370,10 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
       absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
     // Assure that the chrome-extension Urls are corrected to the absolute urls
-    if (absoluteUrl.includes("chrome-extension://" + extId) ||
-      absoluteUrl.includes("chrome-extension://"))
+    if (
+      absoluteUrl.includes("chrome-extension://" + extId) ||
+      absoluteUrl.includes("chrome-extension://")
+    )
       absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
     let cssFileName = getTitle(absoluteUrl);
@@ -385,10 +396,9 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
       cssFileText = await getCSS(cssText, "css", absoluteUrl);
 
       zip.file("css/" + cssFileName + ".css", cssFileText);
-    } catch(error) {
+    } catch (error) {
       console.error(error);
     }
-
   }
   return new Promise((resolve, reject) => {
     resolve(html);
@@ -397,7 +407,7 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
 
 /**
  * Function which pulls all of the javascript files into the downloaded zip
- * 
+ *
  * @param {string} inputUrl - The imput inputUrl for for which to search
  * @param {int} urlDepth - The depth of this search
  */
@@ -406,16 +416,15 @@ async function processJavacripts(inputUrl, urlDepth = 0, html = "") {
   console.log("Processing Javascripts");
 
   // Get the html data for each page
-  if(html === "")
-    html = await getData(inputUrl);
+  if (html === "") html = await getData(inputUrl);
 
   // Initialize a DOMParser
   let parser = new DOMParser();
   let parsed = parser.parseFromString(html, "text/html");
- 
+
   // Get all of the script elements from the parsed HTML
   // and iterate through them all
-  for( const script of parsed.getElementsByTagName("script")) {
+  for (const script of parsed.getElementsByTagName("script")) {
     // Get the "src" attribute vaue of the current script element
     let scriptSrc = script.getAttribute("src");
 
@@ -463,17 +472,78 @@ async function processJavacripts(inputUrl, urlDepth = 0, html = "") {
   });
 }
 
+async function processVideos(inputUrl, urlDepth = 0, html = "") {
+  // Processing Videos
+  console.log("Processing Videos");
+
+  // Get the html data for each page
+  if (html === "") html = await getData(inputUrl);
+
+  // Initialize a DOMParser
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+
+  try {
+    // Get the iframe elements within the parsed HTML
+    let iframeElements = parsed.getElementsByTagName("iframe");
+
+    // Convert the HTMLCollection to an array and iterate over each iframe elment
+    Array.from(iframeElements).forEach(async (video) => {
+      // Get the 'src' attribute of the iframe element
+      let src = video.getAttribute("src");
+
+      // If src attribute is null, exit early from this iteration
+      if (src === null) return;
+
+      // Update the progress bar for zero depths
+      await zeroDepthCounterUpdate();
+
+      // Extract the video name from the src URL and sanitize it
+      let videoName = src
+        .substring(src.lastIndexOf("/") + 1)
+        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+      
+      // Check if the video is a duplicate and if not, add it to the list and prepare for download
+      if (!checkDuplicate(videoName, urlVideo)) {
+        urlVideo.push({ url: videoName });
+        
+        // Adjust the src URL to ensure it's an absolute URL
+        if (src.includes("//")) {
+          src = "https:" + src.substring(src.indexOf("//"));
+        } else {
+          src = getAbsolutePath(src, url);
+        }
+        // Add the video file to the zip
+        zip.file("video/" + videoName, urlToPromise(src), { binary: true });
+      }
+      // Update the HTML string to reflect the changes made
+      html = parsed.documentElement.innerHTML;
+
+      // Set the src attribute of the iframe to point to the local video file
+      let newSrcPath = "../video/";
+      video.setAttribute("src", newSrcPath + videoName);
+    });
+  } catch (error) {
+    console.error(error);
+  }
+
+  // Return the html as a Promise
+  return new Promise((resolve, reject) => {
+    resolve(html);
+  });
+}
+
 /**
  * Process the links for each website we intend to download.
  */
 async function processLinks() {
-  /* We have used a BFS approach 
-   * considering the structure as 
-   * a tree. It uses a queue based 
-   * approach to traverse 
+  /* We have used a BFS approach
+   * considering the structure as
+   * a tree. It uses a queue based
+   * approach to traverse
    * links upto a particular depth
-   */ 
-  
+   */
+
   if (maxDepthValue == 0) {
     // Get the total estimate of links to go through
     await zeroDepthCounterEstimator(currentPage);
@@ -485,13 +555,13 @@ async function processLinks() {
     html = await processPDFs(currentPage, maxDepthValue, html);
     html = await processCSSs(currentPage, maxDepthValue, html);
     html = await processJavacripts(currentPage, maxDepthValue, html);
+    html = await processVideos(currentPage, maxDepthValue, html);
 
     zip.file("html/" + getTitle(currentPage) + ".html", html);
 
     // Reset the zero depth information
     zeroDepthCounter = 0;
     totalZeroDepthCounter = 0;
-
   } else if (maxDepthValue == 1) {
     await getLinks();
 
@@ -504,17 +574,19 @@ async function processLinks() {
 
     for (let url of urlList) {
       // Set the html value
-      if (html === "")
-        html = getData(currentPage);
-      else 
-        html = getData(url);
+      if (html === "") html = getData(currentPage);
+      else html = getData(url);
 
       // Update the progress
       currentCount++;
 
       // Update the Percentage
-      const progressPercentage = calculateProgressPercentage(currentCount, totalCount);
-      document.getElementById("current-progress").innerText = progressPercentage;
+      const progressPercentage = calculateProgressPercentage(
+        currentCount,
+        totalCount
+      );
+      document.getElementById("current-progress").innerText =
+        progressPercentage;
       document.getElementById("progress-bar").style.width = progressPercentage;
 
       // Use requestAnimationFrame to ensure the DOM updates
@@ -524,11 +596,11 @@ async function processLinks() {
       html = await processPDFs(url, maxDepthValue, html);
       html = await processCSSs(url, maxDepthValue, html);
       html = await processJavacripts(url, maxDepthValue, html);
+      html = await processVideos(url, maxDepthValue, html);
 
       // Store the HTML in the zip object
       zip.file("html/" + getTitle(url) + ".html", html);
     }
-  
   } else {
     // Set a bunch of default values
     let html = "";
@@ -546,24 +618,28 @@ async function processLinks() {
 
         for (let j of urls) {
           // Set the html value
-          if (html === "")
-            html = getData(currentPage);
-          else 
-            html = getData(j);
+          if (html === "") html = getData(currentPage);
+          else html = getData(j);
 
           // Update the progress
           currentCount++;
 
           // Update the Percentage
-          const progressPercentage = calculateProgressPercentage(currentCount, totalCount);
-          document.getElementById("current-progress").innerText = progressPercentage;
-          document.getElementById("progress-bar").style.width = progressPercentage;
+          const progressPercentage = calculateProgressPercentage(
+            currentCount,
+            totalCount
+          );
+          document.getElementById("current-progress").innerText =
+            progressPercentage;
+          document.getElementById("progress-bar").style.width =
+            progressPercentage;
 
           // Process the HTML
           html = await getCSS(html, "html", j);
           html = await processPDFs(j, maxDepthValue, html);
           html = await processCSSs(j, maxDepthValue, html);
           html = await processJavacripts(j, maxDepthValue, html);
+          html = await processVideos(j, maxDepthValue, html);
 
           // Store the HTML in the zip object
           zip.file("html/" + getTitle(j) + ".html", html);
@@ -602,7 +678,7 @@ async function getLinks(inputUrl = currentPage) {
   for (const anchor of parsed.getElementsByTagName("a")) {
     let relative = anchor.getAttribute("href");
     let absoluteUrl = anchor.href;
-    
+
     // Skip a bunch of unneeded links
     if (
       absoluteUrl.includes("mailto") ||
@@ -613,8 +689,10 @@ async function getLinks(inputUrl = currentPage) {
       continue;
 
     // Assure that the chrome-extension Urls are corrected to the absolute urls
-    if (absoluteUrl.includes("chrome-extension://" + extId) ||
-      absoluteUrl.includes("chrome-extension://"))
+    if (
+      absoluteUrl.includes("chrome-extension://" + extId) ||
+      absoluteUrl.includes("chrome-extension://")
+    )
       absoluteUrl = getAbsolutePath(relative, inputUrl);
 
     // Make sure that there are no instances of URL in our program
