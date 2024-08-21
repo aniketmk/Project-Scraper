@@ -368,6 +368,10 @@ async function processImgs(inputUrl, urlDepth = 0, html = "") {
       let imageName = src
         .substring(src.lastIndexOf("/") + 1)
         .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+
+      // Update the progress bar for zero depths
+      await zeroDepthCounterUpdate();
+      
       // Check if the image is a duplicate and if not, add it to the list and prepare for download
       if (!checkDuplicate(imageName, urlImage)) {
         urlImage.push({ url: imageName });
