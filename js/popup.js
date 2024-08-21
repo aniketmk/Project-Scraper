@@ -371,8 +371,8 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
 
     // Assure that the chrome-extension Urls are corrected to the absolute urls
     if (
-      absoluteUrl.includes("chrome-extension://" + extId) ||
-      absoluteUrl.includes("chrome-extension://")
+      absoluteUrl.toString().includes("chrome-extension://" + extId) ||
+      absoluteUrl.toString().includes("chrome-extension://")
     )
       absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
