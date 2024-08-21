@@ -5,10 +5,8 @@ let currentPage;
 const submitButton = document.getElementById("submit-button");
 
 // Get the DOM  elements to control persistent saving options
-const excludeImages = document.getElementById("exclude-images-checkbox");
-const focusMode = document.getElementById("focus-mode-checkbox");
-const restrictDomain = document.getElementById("restrict-domain-checkbox");
-const depthMode = document.getElementById("choose-depth-input");
+const focusMode = document.getElementById("focus-mode-toggle");
+const restrictDomain = document.getElementById("restrict-domain-toggle");
 
 // This object serves as a container to store the global state.
 const globalState = {
@@ -16,14 +14,13 @@ const globalState = {
 };
 
 // Get the state of various checkboxes from the DOM to set the initial settings.
-let isExcludeImages = false;
 let isFocusMode = false;
 let isRestrictDomain = false;
 
-excludeImages.addEventListener("change", () => {
-  isExcludeImages = true;
-  fillOptions();
-});
+// excludeImages.addEventListener("change", () => {
+//   isExcludeImages = true;
+//   fillOptions();
+// });
 focusMode.addEventListener("change", () => {
   isFocusMode = true;
   fillOptions();
@@ -94,12 +91,8 @@ function checkDownloadFlag() {
  * Start the scraping process and download the current page.
  */
 function downloadPage() {
-  [startingURLInput, isExcludeImages, isFocusMode, isRestrictDomain] = [
-    currentPage,
-    isExcludeImages,
-    isFocusMode,
-    isRestrictDomain,
-  ];
+  [startingURLInput, isFocusMode, isRestrictDomain] =
+    [currentPage, isFocusMode, isRestrictDomain];
 
   // Calling function to set download flag
   setDownloadFlag(true);
@@ -114,8 +107,8 @@ function downloadPage() {
  */
 function fillOptions() {
   chrome.storage.sync.get((items) => {
-    // console.log(items);
-    isExcludeImages = items.isExcludeImages;
+    console.log(items);
+    // isExcludeImages = items.isExcludeImages;
     isFocusMode = items.isFocusMode;
     isRestrictDomain = items.isRestrictDomain;
   });
@@ -853,7 +846,214 @@ async function getCSS(data, place, urlFile) {
   } catch (err) {
     console.error(err);
   }
-  return new Promise((resolve, reject) => {
-    resolve(data);
-  });
+  return data;
+}
+
+/**
+ * Asynchronously processes HTML data to find and modify links to point to local files,
+ * and downloads linked PDF files to include in a zip file. The function is recursive
+ * and will scrape links up to a specified maximum depth.
+ *
+ * @param {string} html - The HTML data as a string.
+ * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
+ */
+async function getLinks(html, url, urlDepth) {
+  if (urlDepth < depth) {
+    // Check if the current scraping depth is less than the maximum allowed depth
+    // Parse the HTML text into a DOM object
+    let parser = new DOMParser();
+    let parsed = parser.parseFromString(html, "text/html");
+    // Get all links within the HTML data
+    let links = parsed.getElementsByTagName("a");
+    // Loop through all found links
+    for (let j = 0; j < links.length; j++) {
+      let relative = links[j].getAttribute("href"); // Get the relative path of the link
+      let link = links[j].href; // Get the absolute URL of the link
+      // Check if the link contains unwanted strings or has been visited already,
+      // or if the link is empty, then skip processing this link
+      if (
+        link.includes("mailto") ||
+        link.includes("tel") ||
+        link.includes("#") ||
+        checkDuplicate(link, urlList) ||
+        link.length === 0
+      )
+        continue;
+      // Correct the format of the link if necessary
+      if (link.includes("chrome-extension://" + extId))
+        link = getAbsolutePath(relative, url);
+      console.log("adding to list:" + link);
+      // Add the link to the list of URLs to be scraped, increasing the scraping depth
+      urlList.push({ url: link, depth: urlDepth + 1 });
+      // If the link is not to a PDF file, modify the href attribute to point to a local HTML file
+      if (!link.includes(".pdf")) {
+        let linkTitle = getTitle(link);
+        let newHref =
+          urlDepth >= 1 ? linkTitle + ".html" : "html/" + linkTitle + ".html";
+        links[j].setAttribute("href", newHref);
+        // Update the HTML data to reflect the changes
+        html = parsed.documentElement.innerHTML;
+        continue;
+      }
+      // If the link is to a PDF file, download the PDF and modify the href attribute to point to the local PDF file
+      try {
+        let pdfName = getTitle(link) + ".pdf";
+        zip.file("pdf/" + pdfName, urlToPromise(link), { binary: true });
+        let newHref = urlDepth >= 1 ? "../pdf/" + pdfName : "pdf/" + pdfName;
+        links[j].setAttribute("href", newHref);
+      } catch (error) {
+        console.error(error);
+      }
+      // Update the HTML data to reflect the changes
+      html = parsed.documentElement.innerHTML;
+    }
+  }
+  // Return the modified HTML data
+  return html;
+}
+
+/**
+ * Asynchronously processes HTML data to find and modify <iframe> elements to point to local video files,
+ * and downloads video files to include in a zip file.
+ *
+ * @param {string} html - The HTML data as a string.
+ * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
+ */
+async function getVideos(html, url, urlDepth) {
+  try {
+    // Initialize a new DOMParser instance
+    let dp = new DOMParser();
+    // Parse the HTML string into a DOM object
+    let parsed = dp.parseFromString(html, "text/html");
+    // Get all iframe elements within the parsed HTML
+    let testVideoElements = parsed.getElementsByTagName("iframe");
+    // Convert the HTMLCollection to an array and iterate over each iframe element
+    Array.from(testVideoElements).forEach(async (video) => {
+      // Get the 'src' attribute of the iframe element
+      let src = video.getAttribute("src");
+      // If src attribute is null, exit early from this iteration
+      if (src === null) return;
+      // Extract the video name from the src URL and sanitize it
+      let videoName = src
+        .substring(src.lastIndexOf("/") + 1)
+        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+      // Check if the video is a duplicate and if not, add it to the list and prepare for download
+      if (!checkDuplicate(videoName, urlVideo)) {
+        urlVideo.push({ url: videoName });
+        // Adjust the src URL to ensure it's an absolute URL
+        if (src.includes("//")) {
+          src = "https:" + src.substring(src.indexOf("//"));
+        } else {
+          src = getAbsolutePath(src, url);
+        }
+        // Add the video file to the zip
+        zip.file("video/" + videoName, urlToPromise(src), { binary: true });
+      }
+      // Set the src attribute of the iframe to point to the local video file
+      let newSrcPath = urlDepth >= 1 ? "../video/" : "video/";
+      video.setAttribute("src", newSrcPath + videoName);
+    });
+    // Update the HTML string to reflect the changes made
+    html = parsed.documentElement.innerHTML;
+    return html;
+  } catch (err) {
+    // Log any errors encountered during the process
+    console.error(err);
+
+  }
+  // Return the (potentially unmodified) HTML string
+  return html;
+
+}
+
+/**
+ * Asynchronously processes HTML data to find and modify <img> elements to point to local image files,
+ * and downloads image files to include in a zip file.
+ *
+ * @param {string} html - The HTML data as a string.
+ * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
+ */
+async function getImgs(html, url, urlDepth) {
+  try {
+    // Parse the HTML string to a DOM object
+    let dp = new DOMParser();
+    let parsed = dp.parseFromString(html, "text/html");
+    let testImageElements = parsed.getElementsByTagName("img");
+    // Iterate over each image element and process it
+    Array.from(testImageElements).forEach(async (img) => {
+      let src = img.getAttribute("src");
+      // If src attribute is null or a base64 encoded image, skip this iteration
+      if (src === null || src.includes("base64")) return;
+      // Extract the image name from the src URL and sanitize it
+      let imageName = src
+        .substring(src.lastIndexOf("/") + 1)
+        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+      // Check if the image is a duplicate and if not, add it to the list and prepare for download
+      if (!checkDuplicate(imageName, urlImage)) {
+        urlImage.push({ url: imageName });
+        // Adjust the src URL to ensure it's an absolute URL
+        if (src.includes("//")) {
+          src = "https:" + src.substring(src.indexOf("//"));
+        } else {
+          src = getAbsolutePath(src, url);
+        }
+        // Add the image file to the zip
+        zip.file("img/" + imageName, urlToPromise(src), { binary: true });
+      }
+      // Set the src attribute of the img to point to the local image file
+      let newSrcPath = urlDepth >= 1 ? "../img/" : "img/";
+      img.setAttribute("src", newSrcPath + imageName);
+    });
+    // Update the HTML string to reflect the changes made
+    html = parsed.documentElement.innerHTML;
+    return html;
+  } catch (err) {
+    // Log any errors encountered during the process
+    console.error(err);
+  }
+  // Return the (potentially unmodified) HTML string
+  return html;
+}
+
+/******************************************************SCRAPING FUNCTIONS - END*************************************************************/
+
+/**
+ * Given the URL and URL depth, updates the zip files and adds more URLs to the list.
+ *
+ * @param {string} url - The URL to scrape.
+ * @param {number} urlDepth - The depth of URLs to scrape.
+ * @returns {Promise<string>} - A promise that resolves with the scraped HTML content.
+ */
+async function scrapeHtml(url, urlDepth) {
+  let html = "";
+
+  // Nested function to initiate the scraping process
+  const scrape = async (url) => {
+    try {
+      console.log("Scraping URL:", url);
+      html = await getData(url); // Get the HTML of the URL
+
+      try {
+        // Download various resources from the webpage
+        html = await getJavaScript(html, url, urlDepth); // Download external JavaScript files
+        html = await getCSS(html, url, urlDepth); // Download CSS file
+        // Download images if the user has not opted to exclude them
+        if (!isFocusMode) {
+          html = await getImgs(html, url, urlDepth);
+        }
+        // Get additional resources like CSS images, videos, and links
+        html = await getCSSImg(html, "html", url, urlDepth);
+        html = await getVideos(html, url, urlDepth);
+        html = await getLinks(html, url, urlDepth);
+      } catch (err) {
+        console.error("Error in resource download:", err);
+      }
+
+      return html; // Return the modified HTML
+    } catch (err) {
+      console.error("Error in scraping:", err);
+    }
+  };
+
+  return await scrape(url); // Start the scraping process and return the result
 }
