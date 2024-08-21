@@ -480,12 +480,12 @@ async function processJavacripts(inputUrl, urlDepth = 0, html = "") {
 
   // Get all of the script elements from the parsed HTML
   // and iterate through them all
-  for (const script of parsed.getElementsByTagName("script")) {
+  Array.from(parsed.getElementsByTagName("script")).forEach(async (script) => {
     // Get the "src" attribute vaue of the current script element
     let scriptSrc = script.getAttribute("src");
 
     // If the "src" attribute is null skip that iteration
-    if (scriptSrc === null) continue;
+    if (scriptSrc === null) return;
 
     // Update the progress bar for zero depths
     await zeroDepthCounterUpdate();
@@ -506,21 +506,21 @@ async function processJavacripts(inputUrl, urlDepth = 0, html = "") {
     html = parsed.documentElement.innerHTML;
 
     // Check for duplicate script URLs and skip them
-    if (checkDuplicate(lastPart, urlJS)) continue;
+    if (checkDuplicate(lastPart, urlJS)) return;
 
     try {
       // Add the script URL to the tracking array
       urlJS.push({ url: lastPart });
       // Asynchronously fetch the script content
       let scriptText = await getData(scriptSrc);
-      if (scriptText === "Failed") continue;
+      if (scriptText === "Failed") return;
       // Add the script content to the zip file
       zip.file("js/" + scriptFileName + ".js", scriptText);
     } catch (err) {
       // Log errors that occur during the fetching and zipping process
       console.error(err);
     }
-  }
+  });
 
   // Return the Update HTML string
   return new Promise((resolve, reject) => {
