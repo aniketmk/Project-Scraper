@@ -7,6 +7,7 @@ const submitButton = document.getElementById("submit-button");
 // Get the DOM  elements to control persistent saving options
 const focusMode = document.getElementById("focus-mode-toggle");
 const restrictDomain = document.getElementById("restrict-domain-toggle");
+const depthMode = document.getElementById("choose-depth-input");
 
 // This object serves as a container to store the global state.
 const globalState = {
