@@ -205,6 +205,9 @@ function calculateProgressPercentage(currentCount, totalCount) {
  * @param {*} inputUrl - The url which
  */
 async function zeroDepthCounterEstimator(inputUrl) {
+  // Note that we are estimating length
+  console.log("Estimating the length of urls to be processed");
+
   // Setup some basic stuff for getting information out of the page
   let html = await getData(inputUrl);
   let parser = new DOMParser();
