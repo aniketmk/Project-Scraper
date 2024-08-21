@@ -222,12 +222,13 @@ async function zeroDepthCounterEstimator(inputUrl) {
     parsed.getElementsByTagName("script")
   ).filter((element) => element.hasAttribute("src")).length;
   let imagesTotal = Array.from(parsed.getElementsByTagName("img")).length;
-  let videoTotal = Array.from(
-    parsed.getElementsByTagName("iframe")
-  ).filter((element) => element.hasAttribute("src")).length;
+  let videoTotal = Array.from(parsed.getElementsByTagName("iframe")).filter(
+    (element) => element.hasAttribute("src")
+  ).length;
 
   // Set the total amount for zero depth
-  totalZeroDepthCounter = cssTotal + pdfTotal + javascriptTotal + videoTotal + imagesTotal;
+  totalZeroDepthCounter =
+    cssTotal + pdfTotal + javascriptTotal + videoTotal + imagesTotal;
 
   return new Promise((resolve, reject) => {
     resolve();
@@ -357,14 +358,14 @@ async function processImgs(inputUrl, urlDepth = 0, html = "") {
 
     // Get the html data for each page
     if (html === "") html = await getData(inputUrl);
-    
+
     // Parse the HTML string into a DOM object
     let parser = new DOMParser();
     let parsed = parser.parseFromString(html, "text/html");
 
     // Get all of the image tags
     let imageElements = parsed.getElementsByTagName("img");
-    
+
     // Iterate over each image elmeent and process it
     Array.from(imageElements).forEach(async (img) => {
       let src = img.getAttribute("src");
@@ -396,7 +397,6 @@ async function processImgs(inputUrl, urlDepth = 0, html = "") {
     });
 
     html = parsed.documentElement.innerHTML;
-
   } catch (error) {
     // Log any errors that are encountered during the process
     console.error(error);
@@ -423,47 +423,50 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
   // Iterate through each
   for (const stylesheet of parsed.getElementsByTagName("link")) {
     // Skip everything that is not a stylesheet
-    if (stylesheet.getAttribute("rel") !== "stylesheet") continue;
-
-    let relativePath = stylesheet.getAttribute("href");
-    let absoluteUrl = stylesheet.href;
-
-    // Update the progress bar for zero depths
-    await zeroDepthCounterUpdate();
-
-    // Check if the path includes https and set the correct absoluteUrl
-    if (!relativePath.includes("https://"))
-      absoluteUrl = getAbsolutePath(relativePath, inputUrl);
-
-    // Assure that the chrome-extension Urls are corrected to the absolute urls
     if (
-      absoluteUrl.toString().includes("chrome-extension://" + extId) ||
-      absoluteUrl.toString().includes("chrome-extension://")
-    )
-      absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+      stylesheet.getAttribute("rel") == "stylesheet" ||
+      stylesheet.getAttribute("rel") == "preload"
+    ) {
+      let relativePath = stylesheet.getAttribute("href");
+      let absoluteUrl = stylesheet.href;
 
-    let cssFileName = getTitle(absoluteUrl);
+      // Update the progress bar for zero depths
+      await zeroDepthCounterUpdate();
 
-    // Set the file location for each css file
-    stylesheet.setAttribute("href", "../css/" + cssFileName + ".css");
+      // Check if the path includes https and set the correct absoluteUrl
+      if (!relativePath.includes("https://"))
+        absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
-    html = parsed.documentElement.innerHTML;
+      // Assure that the chrome-extension Urls are corrected to the absolute urls
+      if (
+        absoluteUrl.toString().includes("chrome-extension://" + extId) ||
+        absoluteUrl.toString().includes("chrome-extension://")
+      )
+        absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
-    if (urlCSS.toString().includes(absoluteUrl)) continue;
+      let cssFileName = getTitle(absoluteUrl);
 
-    try {
-      urlCSS.push(absoluteUrl);
+      // Set the file location for each css file
+      stylesheet.setAttribute("href", "../css/" + cssFileName + ".css");
 
-      let cssText = await getData(absoluteUrl);
+      html = parsed.documentElement.innerHTML;
 
-      if (cssText === "Failed") continue;
+      if (urlCSS.toString().includes(absoluteUrl)) continue;
 
-      // ToDo: Implement getCSSImage
-      cssFileText = await getCSS(cssText, "css", absoluteUrl);
+      try {
+        urlCSS.push(absoluteUrl);
 
-      zip.file("css/" + cssFileName + ".css", cssFileText);
-    } catch (error) {
-      console.error(error);
+        let cssText = await getData(absoluteUrl);
+
+        if (cssText === "Failed") continue;
+
+        // ToDo: Implement getCSSImage
+        cssFileText = await getCSS(cssText, "css", absoluteUrl);
+
+        zip.file("css/" + cssFileName + ".css", cssFileText);
+      } catch (error) {
+        console.error(error);
+      }
     }
   }
   return new Promise((resolve, reject) => {
@@ -568,11 +571,11 @@ async function processVideos(inputUrl, urlDepth = 0, html = "") {
       let videoName = src
         .substring(src.lastIndexOf("/") + 1)
         .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
-      
+
       // Check if the video is a duplicate and if not, add it to the list and prepare for download
       if (!checkDuplicate(videoName, urlVideo)) {
         urlVideo.push({ url: videoName });
-        
+
         // Adjust the src URL to ensure it's an absolute URL
         if (src.includes("//")) {
           src = "https:" + src.substring(src.indexOf("//"));
