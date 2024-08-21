@@ -312,7 +312,7 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
   let parsed = parser.parseFromString(html, "text/html");
 
   // Loop through all the links on the found page
-  for (const anchor of parsed.getElementsByTagName("a")) {
+  Array.from(parsed.getElementsByTagName("a")).forEach(async (anchor) => {
     let absoluteUrl = anchor.href;
 
     // Update the progress bar for zero depths
@@ -320,7 +320,7 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
 
     // Exclude any non-PDFs
     if (!absoluteUrl.includes(".pdf")) {
-      continue;
+      return;
     }
 
     try {
@@ -336,7 +336,9 @@ async function processPDFs(inputUrl, urlDepth = 0, html = "") {
     } catch (error) {
       console.error(error);
     }
-  }
+  });
+
+  // Return the HTML
   return new Promise((resolve, reject) => {
     resolve(html);
   });
