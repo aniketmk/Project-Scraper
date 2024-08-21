@@ -108,7 +108,6 @@ function downloadPage() {
  */
 function fillOptions() {
   chrome.storage.sync.get((items) => {
-    console.log(items);
     // isExcludeImages = items.isExcludeImages;
     isFocusMode = items.isFocusMode;
     isRestrictDomain = items.isRestrictDomain;
