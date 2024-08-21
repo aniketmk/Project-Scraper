@@ -7,6 +7,7 @@ const submitButton = document.getElementById("submit-button");
 // Get the DOM  elements to control persistent saving options
 const focusMode = document.getElementById("focus-mode-toggle");
 const restrictDomain = document.getElementById("restrict-domain-toggle");
+const depthMode = document.getElementById("choose-depth-input");
 
 // This object serves as a container to store the global state.
 const globalState = {
@@ -107,7 +108,6 @@ function downloadPage() {
  */
 function fillOptions() {
   chrome.storage.sync.get((items) => {
-    console.log(items);
     // isExcludeImages = items.isExcludeImages;
     isFocusMode = items.isFocusMode;
     isRestrictDomain = items.isRestrictDomain;
@@ -124,6 +124,10 @@ let urlImage = [];
 let urlVideo = [];
 let urlJS = [];
 
+// Keep track of base count for when links are at 0 depth
+let zeroDepthCounter = 0;
+let totalZeroDepthCounter = 0;
+
 // Flag to track if the scraping is completed
 let scrapingDone = false;
 
@@ -131,7 +135,11 @@ let scrapingDone = false;
 let extId = chrome.runtime.id;
 
 // Initialize a variable to track the depth of the crawl, set to zero by default
-let depth = 0;
+let maxDepthValue = 0;
+
+depthMode.addEventListener("change", () => {
+  maxDepthValue = depthMode.value;
+});
 
 // Create a new JSZip instance to hold the zipped contents
 let zip = new JSZip();
@@ -143,11 +151,14 @@ let zip = new JSZip();
  * @param {number} delay - The delay in milliseconds before the function executes.
  * @returns {Promise} - A promise that resolves if the current progress is 100%.
  */
-function performLoadingProcess(delay) {
+async function performLoadingProcess(delay) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       // Checking if the current progress is at 100%
-      if (document.getElementById("current-progress").innerText === "100%") {
+      if (
+        document.getElementById("current-progress").innerText === "100%" ||
+        maxDepthValue === 0
+      ) {
         // Resetting the progress text and bar to 0%
         document.getElementById("current-progress").innerText = "0%";
         document.getElementById("progress-bar").style.width = "0%";
@@ -160,27 +171,93 @@ function performLoadingProcess(delay) {
 }
 
 /**
+ * Calculates the download progress percentage.
+ *
+ * @param {number} currentCount - The current count of processed items.
+ * @param {number} totalCount - The total number of items to process.
+ * @returns {string} - The progress percentage as a string.
+ */
+function calculateProgressPercentage(currentCount, totalCount) {
+  if (totalCount === 0) {
+    return "0%";
+  }
+
+  let percentage = Math.ceil((currentCount / totalCount) * 100);
+  if (percentage > 100) {
+    percentage = 100;
+  }
+  return percentage.toString() + "%";
+}
+
+/**
+ * This function basically keeps track of count of an estimate for
+ * the page when things are at zero depth.
+ *
+ * ToDo: This function should probably be a standard for all calculations
+ *
+ * @param {*} inputUrl - The url which
+ */
+async function zeroDepthCounterEstimator(inputUrl) {
+  // Note that we are estimating length
+  console.log("Estimating the length of urls to be processed");
+
+  // Setup some basic stuff for getting information out of the page
+  let html = await getData(inputUrl);
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+
+  // Get the total number of links for css, pdf and javascript for an estimate
+  let cssTotal = parsed.querySelectorAll("link[rel='stylesheet']").length;
+  let pdfTotal = Array.from(parsed.getElementsByTagName("a")).filter(
+    (element) => element.href.includes(".pdf")
+  ).length;
+  let javascriptTotal = Array.from(
+    parsed.getElementsByTagName("script")
+  ).filter((element) => element.hasAttribute("src")).length;
+  let imagesTotal = Array.from(parsed.getElementsByTagName("img")).length;
+  let videoTotal = Array.from(parsed.getElementsByTagName("iframe")).filter(
+    (element) => element.hasAttribute("src")
+  ).length;
+
+  // Set the total amount for zero depth
+  totalZeroDepthCounter =
+    cssTotal + pdfTotal + javascriptTotal + videoTotal + imagesTotal;
+
+  return new Promise((resolve, reject) => {
+    resolve();
+  });
+}
+
+/**
+ * Updates the progress bar for zero depths
+ */
+async function zeroDepthCounterUpdate() {
+  if (maxDepthValue == 0) {
+    // Use requestAnimationFrame to ensure the DOM updates
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    // Update the progress
+    console.log("Progress Update");
+    zeroDepthCounter++;
+    const progressPercentage = calculateProgressPercentage(
+      zeroDepthCounter,
+      totalZeroDepthCounter
+    );
+    document.getElementById("current-progress").innerText = progressPercentage;
+    document.getElementById("progress-bar").style.width = progressPercentage;
+  }
+
+  return new Promise((resolve, reject) => {
+    resolve();
+  });
+}
+
+/**
  * This is main function that iterates through the list of all pages and starts scrapping process.
  */
 async function startScrapingProcess() {
-  // Initialize the first URL and set its depth to 0
-  urlList[0] = { url: startingURLInput, depth: depth };
-
-  // Loop through each URL in the urlList to scrape their HTML content
-  for (let i = 0; i < urlList.length; i++) {
-    // Calculate the progress percentage and update the progress bar and text
-    let progressPercentage =
-      Math.ceil(((i + 1) / urlList.length) * 100).toString() + "%";
-    document.getElementById("current-progress").innerText = progressPercentage;
-    document.getElementById("progress-bar").style.width = progressPercentage;
-
-    // Attempt to scrape the HTML content from the current URL
-    htmlResponse = await scrapeHtml(urlList[i].url, urlList[i].depth);
-
-    // Save the scraped HTML content to the zip file
-    let filePath = i === 0 ? "" : "html/";
-    zip.file(filePath + getTitle(urlList[i].url) + ".html", htmlResponse);
-  }
+  // Start to process the links we want to scrape.
+  await processLinks();
 
   // Wait for 3 seconds before continuing
   await performLoadingProcess(3000);
@@ -190,6 +267,7 @@ async function startScrapingProcess() {
 
   // Generate the zip file and initiate the download process
   zip.generateAsync({ type: "blob" }).then((content) => {
+    console.log("ZIP Download Process");
     let urlBlob = URL.createObjectURL(content);
 
     // Initiate the download process and catch any errors that occur
@@ -212,130 +290,492 @@ async function startScrapingProcess() {
     }
   });
 
-  // Reset the download flag and clear the zip variable for future use
+  // // Reset the download flag and clear the zip variable for future use
   setDownloadFlag(false);
   zip = new JSZip();
 }
 
-/******************************************************SCRAPING FUNCTIONS - START***********************************************************/
 /*
- * This script parses a given HTML string to find all <link> elements with rel="stylesheet"
- * and prints the absolute URL and filename of the stylesheet link.
- *
- * @param {string} html - The HTML content as a string.
- * @param {number} urlDepth - The depth of the page that needs to be downloaded.
- * @returns {string} - The updated HTML content as a string.
+ * Modify HTML to have PDFs linked correctly
  */
-async function getCSS(html, url, urlDepth) {
-  // Initialize a DOMParser instance
-  let dp = new DOMParser();
-  // Parse the HTML string into a DOM Document object
-  let parsedHTML = dp.parseFromString(html, "text/html");
-  // Find all <link> elements in the parsed HTML
-  let linkElements = parsedHTML.getElementsByTagName("link");
-  // Iterate through each <link> element
-  for (const elementRef of linkElements) {
-    // If the rel attribute is not 'stylesheet', skip this iteration
-    if (elementRef.getAttribute("rel") !== "stylesheet") continue;
-    // Get the href attribute value (might be relative or absolute)
-    let relativePath = elementRef.getAttribute("href");
-    // Initialize element with the absolute URL (if href is already absolute)
-    let element = elementRef.href;
-    // If href does not start with "https://", convert relative path to an absolute path
-    if (relativePath.search("https://") === -1) {
-      element = getAbsolutePath(relativePath, url);
+async function processPDFs(inputUrl, urlDepth = 0, html = "") {
+  // Note the the Process PDFs has started
+  console.log("Processing PDFs");
+
+  // Get the html data for each page
+  if (html === "") html = await getData(inputUrl);
+
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+
+  // Loop through all the links on the found page
+  Array.from(parsed.getElementsByTagName("a")).forEach(async (anchor) => {
+    let absoluteUrl = anchor.href;
+
+    // Update the progress bar for zero depths
+    await zeroDepthCounterUpdate();
+
+    // Exclude any non-PDFs
+    if (!absoluteUrl.includes(".pdf")) {
+      return;
     }
-    // Get and log the filename of the CSS file
-    let cssFile = getTitle(element);
-    if (urlDepth >= 1) {
-      // If the URL depth is 1 or more, set the href attribute to point to the CSS file
-      // in the parent directory's "css" folder with the respective css file name
-      elementRef.setAttribute("href", "../css/" + cssFile + ".css");
-    } else {
-      // If the URL depth is less than 1, set the href attribute to point to the CSS file
-      // in the "css" folder within the current directory with the respective css file name
-      elementRef.setAttribute("href", "css/" + cssFile + ".css");
-    }
-    // Update the current HTML with the modified href attribute
-    html = parsedHTML.documentElement.innerHTML;
-    // Check if the URL is a duplicate in the urlCSS array, and if so, skip to the next iteration
-    if (checkDuplicate(element, urlCSS)) continue;
+
     try {
-      // Add the current URL to the urlCSS array
-      urlCSS.push({ url: element });
-      // Fetch the CSS text data asynchronously
-      let cssText = await getData(element);
-      // If the CSS text data retrieval failed, skip to the next iteration
-      if (cssText === "Failed") continue;
-      // Fetch CSS image data asynchronously and update the cssText
-      cssText = await getCSSImg(cssText, "css", element);
-      // Add the CSS text data to the zip file under the "css" directory with the respective css file name
-      zip.file("css/" + cssFile + ".css", cssText);
-      // Log the filename of the zipped CSS file
-      // console.log("File name of zipped CSS: " + cssFile);
-    } catch (err) {
-      // Log any errors that occur during the try and catch block
-      console.error(err);
+      let pdfName = getTitle(absoluteUrl);
+
+      zip.file("pdf/" + pdfName, urlToPromise(absoluteUrl), { binary: true });
+
+      let newHref = maxDepthValue >= 1 ? "../pdf/" + pdfName : "pdf/" + pdfName;
+
+      anchor.setAttribute("href", newHref);
+
+      html = parsed.documentElement.innerHTML;
+    } catch (error) {
+      console.error(error);
     }
-    // Return the updated HTML
-    return html;
+  });
+
+  // Return the HTML
+  return new Promise((resolve, reject) => {
+    resolve(html);
+  });
+}
+
+/*
+ * Process the Image Files
+ */
+async function processImgs(inputUrl, urlDepth = 0, html = "") {
+  try {
+    // Note that we are now Processing Images
+    console.log("Processing Images");
+
+    // Get the html data for each page
+    if (html === "") html = await getData(inputUrl);
+
+    // Parse the HTML string into a DOM object
+    let parser = new DOMParser();
+    let parsed = parser.parseFromString(html, "text/html");
+
+    // Get all of the image tags
+    let imageElements = parsed.getElementsByTagName("img");
+
+    // Iterate over each image elmeent and process it
+    Array.from(imageElements).forEach(async (img) => {
+      let src = img.getAttribute("src");
+      // If src attribute is null or a base64 encoded image, skip this iteration
+      if (src === null || src.includes("base64")) return;
+      // Extract the image name from the src URL and sanitize it
+      let imageName = src
+        .substring(src.lastIndexOf("/") + 1)
+        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+
+      // Update the progress bar for zero depths
+      await zeroDepthCounterUpdate();
+
+      // Check if the image is a duplicate and if not, add it to the list and prepare for download
+      if (!checkDuplicate(imageName, urlImage)) {
+        urlImage.push({ url: imageName });
+        // Adjust the src URL to ensure it's an absolute URL
+        if (src.includes("//")) {
+          src = "https:" + src.substring(src.indexOf("//"));
+        } else {
+          src = getAbsolutePath(src, inputUrl);
+        }
+        // Add the image file to the zip
+        zip.file("img/" + imageName, urlToPromise(src), { binary: true });
+      }
+      // Set the src attribute of the img to point to the local image file
+      let newSrcPath = "../img/";
+      img.setAttribute("src", newSrcPath + imageName);
+    });
+
+    html = parsed.documentElement.innerHTML;
+  } catch (error) {
+    // Log any errors that are encountered during the process
+    console.error(error);
   }
+
+  return new Promise((resolve, reject) => {
+    resolve(html);
+  });
+}
+
+/*
+ * Process the CSS files
+ */
+async function processCSSs(inputUrl, urlDepth = 0, html = "") {
+  // Note that the CSS is being processed
+  console.log("Processing CSS");
+
+  // Get the html data for each page
+  if (html === "") html = await getData(inputUrl);
+
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+
+  // Iterate through each
+  for (const stylesheet of parsed.getElementsByTagName("link")) {
+    // Skip everything that is not a stylesheet
+    if (
+      stylesheet.getAttribute("rel") == "stylesheet" ||
+      stylesheet.getAttribute("rel") == "preload"
+    ) {
+      let relativePath = stylesheet.getAttribute("href");
+      let absoluteUrl = stylesheet.href;
+
+      // Update the progress bar for zero depths
+      await zeroDepthCounterUpdate();
+
+      // Check if the path includes https and set the correct absoluteUrl
+      if (!relativePath.includes("https://"))
+        absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+
+      // Assure that the chrome-extension Urls are corrected to the absolute urls
+      if (
+        absoluteUrl.toString().includes("chrome-extension://" + extId) ||
+        absoluteUrl.toString().includes("chrome-extension://")
+      )
+        absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+
+      let cssFileName = getTitle(absoluteUrl);
+
+      // Set the file location for each css file
+      stylesheet.setAttribute("href", "../css/" + cssFileName + ".css");
+
+      html = parsed.documentElement.innerHTML;
+
+      if (urlCSS.toString().includes(absoluteUrl)) continue;
+
+      try {
+        urlCSS.push(absoluteUrl);
+
+        let cssText = await getData(absoluteUrl);
+
+        if (cssText === "Failed") continue;
+
+        // ToDo: Implement getCSSImage
+        cssFileText = await getCSS(cssText, "css", absoluteUrl);
+
+        zip.file("css/" + cssFileName + ".css", cssFileText);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  }
+  return new Promise((resolve, reject) => {
+    resolve(html);
+  });
 }
 
 /**
- * Asynchronous function to retrieve JavaScript files from script tags within the provided HTML string,
- * adjust their paths based on the URL depth, check for duplicates, and add non-duplicate scripts to a zip file.
+ * Function which pulls all of the javascript files into the downloaded zip
  *
- * @param {string} html - The HTML content as a string.
- * @param {number} urlDepth - The depth of the page that needs to be downloaded.
- * @returns {string} - The updated HTML content as a string.
+ * @param {string} inputUrl - The imput inputUrl for for which to search
+ * @param {int} urlDepth - The depth of this search
  */
-async function getJavaScript(html, url, urlDepth) {
-  // Initialize a DOMParser instance
-  let dp = new DOMParser();
-  // Parse the HTML string to a DOM Document object
-  let parsedHTML = dp.parseFromString(html, "text/html");
-  // Get all script elements from the parsed HTML
-  let scriptElements = parsedHTML.getElementsByTagName("script");
-  // Iterate through all the script elements
-  for (const elementRef of scriptElements) {
-    // Get the "src" attribute value of the current script element
-    let elementSrc = elementRef.getAttribute("src");
-    // If the "src" attribute is null, skip this iteration
-    if (elementSrc === null) continue;
+async function processJavacripts(inputUrl, urlDepth = 0, html = "") {
+  // Note that we are processing Javascript Files
+  console.log("Processing Javascripts");
+
+  // Get the html data for each page
+  if (html === "") html = await getData(inputUrl);
+
+  // Initialize a DOMParser
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+
+  // Get all of the script elements from the parsed HTML
+  // and iterate through them all
+  Array.from(parsed.getElementsByTagName("script")).forEach(async (script) => {
+    // Get the "src" attribute vaue of the current script element
+    let scriptSrc = script.getAttribute("src");
+
+    // If the "src" attribute is null skip that iteration
+    if (scriptSrc === null) return;
+
+    // Update the progress bar for zero depths
+    await zeroDepthCounterUpdate();
+
     // Convert relative URLs to absolute URLs
-    if (elementSrc.toString().search("https://") === -1) {
-      elementSrc = getAbsolutePath(elementSrc, url);
-    }
+    if (scriptSrc.toString().search("https://") === -1)
+      scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
+
     // Get the file name of the script and the last part of its URL
-    let scriptFile = getTitle(elementSrc);
-    let eString = elementSrc.toString();
-    let lastPart = eString.substring(eString.lastIndexOf("/") + 1);
+    let scriptFileName = getTitle(scriptSrc);
+    let scriptString = scriptSrc.toString();
+    let lastPart = scriptString.substring(scriptString.lastIndexOf("/") + 1);
+
     // Update the "src" attribute in the HTML based on the URL depth
-    if (urlDepth >= 1) {
-      elementRef.setAttribute("src", "../js/" + scriptFile + ".js");
-    } else {
-      elementRef.setAttribute("src", "js/" + scriptFile + ".js");
-    }
+    script.setAttribute("src", "../js/" + scriptFileName + ".js");
+
     // Update the HTML string with the modified script element
-    html = parsedHTML.documentElement.innerHTML;
+    html = parsed.documentElement.innerHTML;
+
     // Check for duplicate script URLs and skip them
-    if (checkDuplicate(lastPart, urlJS)) continue;
+    if (checkDuplicate(lastPart, urlJS)) return;
+
     try {
       // Add the script URL to the tracking array
       urlJS.push({ url: lastPart });
       // Asynchronously fetch the script content
-      let scriptText = await getData(elementSrc);
-      if (scriptText === "Failed") continue;
+      let scriptText = await getData(scriptSrc);
+      if (scriptText === "Failed") return;
       // Add the script content to the zip file
-      zip.file("js/" + scriptFile + ".js", scriptText);
+      zip.file("js/" + scriptFileName + ".js", scriptText);
     } catch (err) {
       // Log errors that occur during the fetching and zipping process
       console.error(err);
     }
+  });
+
+  // Return the Update HTML string
+  return new Promise((resolve, reject) => {
+    resolve(html);
+  });
+}
+
+async function processVideos(inputUrl, urlDepth = 0, html = "") {
+  // Processing Videos
+  console.log("Processing Videos");
+
+  // Get the html data for each page
+  if (html === "") html = await getData(inputUrl);
+
+  // Initialize a DOMParser
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+
+  try {
+    // Get the iframe elements within the parsed HTML
+    let iframeElements = parsed.getElementsByTagName("iframe");
+
+    // Convert the HTMLCollection to an array and iterate over each iframe elment
+    Array.from(iframeElements).forEach(async (video) => {
+      // Get the 'src' attribute of the iframe element
+      let src = video.getAttribute("src");
+
+      // If src attribute is null, exit early from this iteration
+      if (src === null) return;
+
+      // Update the progress bar for zero depths
+      await zeroDepthCounterUpdate();
+
+      // Extract the video name from the src URL and sanitize it
+      let videoName = src
+        .substring(src.lastIndexOf("/") + 1)
+        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+
+      // Check if the video is a duplicate and if not, add it to the list and prepare for download
+      if (!checkDuplicate(videoName, urlVideo)) {
+        urlVideo.push({ url: videoName });
+
+        // Adjust the src URL to ensure it's an absolute URL
+        if (src.includes("//")) {
+          src = "https:" + src.substring(src.indexOf("//"));
+        } else {
+          src = getAbsolutePath(src, url);
+        }
+        // Add the video file to the zip
+        zip.file("video/" + videoName, urlToPromise(src), { binary: true });
+      }
+      // Update the HTML string to reflect the changes made
+      html = parsed.documentElement.innerHTML;
+
+      // Set the src attribute of the iframe to point to the local video file
+      let newSrcPath = "../video/";
+      video.setAttribute("src", newSrcPath + videoName);
+    });
+  } catch (error) {
+    console.error(error);
   }
-  // Return the updated HTML string
-  return html;
+
+  // Return the html as a Promise
+  return new Promise((resolve, reject) => {
+    resolve(html);
+  });
+}
+
+/**
+ * Process the links for each website we intend to download.
+ */
+async function processLinks() {
+  /* We have used a BFS approach
+   * considering the structure as
+   * a tree. It uses a queue based
+   * approach to traverse
+   * links upto a particular depth
+   */
+
+  if (maxDepthValue == 0) {
+    // Get the total estimate of links to go through
+    await zeroDepthCounterEstimator(currentPage);
+
+    // Start the HTML with some value
+    let html = getData(currentPage);
+
+    html = await getCSS(html, "html", currentPage);
+    html = await processPDFs(currentPage, maxDepthValue, html);
+    html = await processImgs(currentPage, maxDepthValue, html);
+    html = await processCSSs(currentPage, maxDepthValue, html);
+    html = await processJavacripts(currentPage, maxDepthValue, html);
+    html = await processVideos(currentPage, maxDepthValue, html);
+
+    zip.file("html/" + getTitle(currentPage) + ".html", html);
+
+    // Reset the zero depth information
+    zeroDepthCounter = 0;
+    totalZeroDepthCounter = 0;
+  } else if (maxDepthValue == 1) {
+    await getLinks();
+
+    // Start for the html
+    let html = "";
+
+    // Link counters
+    let currentCount = 0;
+    let totalCount = urlList.length;
+
+    for (let url of urlList) {
+      // Set the html value
+      if (html === "") html = getData(currentPage);
+      else html = getData(url);
+
+      // Update the progress
+      currentCount++;
+
+      // Update the Percentage
+      const progressPercentage = calculateProgressPercentage(
+        currentCount,
+        totalCount
+      );
+      document.getElementById("current-progress").innerText =
+        progressPercentage;
+      document.getElementById("progress-bar").style.width = progressPercentage;
+
+      // Use requestAnimationFrame to ensure the DOM updates
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      html = await getCSS(html, "html", url);
+      html = await processPDFs(url, maxDepthValue, html);
+      html = await processImgs(url, maxDepthValue, html);
+      html = await processCSSs(url, maxDepthValue, html);
+      html = await processJavacripts(url, maxDepthValue, html);
+      html = await processVideos(url, maxDepthValue, html);
+
+      // Store the HTML in the zip object
+      zip.file("html/" + getTitle(url) + ".html", html);
+    }
+  } else {
+    // Set a bunch of default values
+    let html = "";
+    let queue = [];
+    queue.push(currentPage);
+
+    for (let i of [...Array(maxDepthValue).keys()]) {
+      while (queue.length) {
+        let url = queue.shift();
+        let urls = await getLinks(url);
+
+        // Link counters
+        let currentCount = 0;
+        let totalCount = urlList.length;
+
+        for (let j of urls) {
+          // Set the html value
+          if (html === "") html = getData(currentPage);
+          else html = getData(j);
+
+          // Update the progress
+          currentCount++;
+
+          // Update the Percentage
+          const progressPercentage = calculateProgressPercentage(
+            currentCount,
+            totalCount
+          );
+          document.getElementById("current-progress").innerText =
+            progressPercentage;
+          document.getElementById("progress-bar").style.width =
+            progressPercentage;
+
+          // Process the HTML
+          html = await getCSS(html, "html", j);
+          html = await processPDFs(j, maxDepthValue, html);
+          html = await processImgs(j, maxDepthValue, html);
+          html = await processCSSs(j, maxDepthValue, html);
+          html = await processJavacripts(j, maxDepthValue, html);
+          html = await processVideos(j, maxDepthValue, html);
+
+          // Store the HTML in the zip object
+          zip.file("html/" + getTitle(j) + ".html", html);
+
+          // Store j in the queue for future use
+          queue.push(j);
+        }
+      }
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    resolve();
+  });
+}
+
+/**
+ * Asynchronously processes HTML data to find and modify links to point to local files,
+ * nd downloads linked PDF files to include in a zip file. The function is recursive
+ * and will scrape links up to a specified maximum depth.
+ *
+ * @param {string} inputUrl - The input or current page within the tab also works for multiple links.
+ * @returns {Promis<Array>} - The list of all the Urls for the page
+ */
+async function getLinks(inputUrl = currentPage) {
+  // Temp storage of current urls
+  tempUrls = new Set();
+
+  // Get the html data for each page
+  html = await getData(inputUrl);
+
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(html, "text/html");
+
+  // Search for all the urls on the first given page
+  for (const anchor of parsed.getElementsByTagName("a")) {
+    let relative = anchor.getAttribute("href");
+    let absoluteUrl = anchor.href;
+
+    // Skip a bunch of unneeded links
+    if (
+      absoluteUrl.includes("mailto") ||
+      absoluteUrl.includes("tel") ||
+      absoluteUrl.includes("#") ||
+      absoluteUrl.length === 0
+    )
+      continue;
+
+    // Assure that the chrome-extension Urls are corrected to the absolute urls
+    if (
+      absoluteUrl.includes("chrome-extension://" + extId) ||
+      absoluteUrl.includes("chrome-extension://")
+    )
+      absoluteUrl = getAbsolutePath(relative, inputUrl);
+
+    // Make sure that there are no instances of URL in our program
+    if (absoluteUrl instanceof URL) continue;
+
+    // Make sure that no urls are already in the list
+    if (!urlList.includes(absoluteUrl)) {
+      // Note that the Url is being added to the list of Urls
+      console.log("Adding to list: " + absoluteUrl);
+
+      // Store the URLs
+      tempUrls.add(absoluteUrl);
+      urlList.push(absoluteUrl);
+    }
+  }
+  return new Promise((resolve, reject) => {
+    resolve(tempUrls);
+  });
 }
 
 /**
@@ -346,15 +786,18 @@ async function getJavaScript(html, url, urlDepth) {
  * @param {string} urlFile - The base URL to resolve relative paths.
  * @returns {Promise<string>} - A promise that resolves with the modified data.
  */
-async function getCSSImg(data, place, urlFile, urlDepth) {
+async function getCSS(data, place, urlFile) {
+  // Exit out if this is not a string
+  if (typeof data === "object") return;
+
   try {
     // Regular expression to match URLs in background-image properties or img tags.
     const regex = /url\s*\(\s*/;
-    let bg = data.substring(data.search(regex));
+    let bg = data.substring(data.match(regex));
     let count = 0;
     while (bg.search(regex) !== -1 && count <= 100) {
       try {
-        bg = data.substring(data.search(regex));
+        bg = data.substring(data.match(regex));
         let bgIni = bg.substring(bg.indexOf("url") + 4, bg.indexOf(")"));
         // Modify the URL to get a clean, absolute URL.
         let path;
@@ -386,10 +829,7 @@ async function getCSSImg(data, place, urlFile, urlDepth) {
           imageName.length - Math.min(50, imageName.length)
         );
         // Replace the URLs in the data with local paths to the images.
-        let newImagePath =
-          place === "css"
-            ? "../img/" + imageName
-            : (urlDepth >= 1 ? "../img/" : "img/") + imageName;
+        let newImagePath = "../img/" + imageName;
         data = data.replace(bgIni, newImagePath);
         // Download the image and include it in the zip file.
         if (!checkDuplicate(imageName, urlImage)) {
@@ -397,7 +837,7 @@ async function getCSSImg(data, place, urlFile, urlDepth) {
           zip.file("img/" + imageName, urlToPromise(path), { binary: true });
         }
         count++;
-        bg = data.substring(data.search(regex) + 20);
+        bg = data.substring(data.match(regex) + 20);
       } catch (err) {
         console.error(err);
       }

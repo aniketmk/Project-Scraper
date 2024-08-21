@@ -80,5 +80,8 @@ function getAbsolutePath(relPath, baseUrl) {
  * @returns {boolean} - Returns true if the URL is found in the list, false otherwise.
  */
 function checkDuplicate(url, listUrl) {
+  if (typeof listUrl.some !== "function") return false;
   return listUrl.some((item) => item.url === url);
 }
+
+
