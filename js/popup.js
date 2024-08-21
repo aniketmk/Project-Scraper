@@ -218,12 +218,13 @@ async function zeroDepthCounterEstimator(inputUrl) {
   let javascriptTotal = Array.from(
     parsed.getElementsByTagName("script")
   ).filter((element) => element.hasAttribute("src")).length;
+  let imagesTotal = Array.from(parsed.getElementsByTagName("img")).length;
   let videoTotal = Array.from(
     parsed.getElementsByTagName("iframe")
   ).filter((element) => element.hasAttribute("src")).length;
 
   // Set the total amount for zero depth
-  totalZeroDepthCounter = cssTotal + pdfTotal + javascriptTotal + videoTotal;
+  totalZeroDepthCounter = cssTotal + pdfTotal + javascriptTotal + videoTotal + imagesTotal;
 
   return new Promise((resolve, reject) => {
     resolve();
@@ -371,7 +372,7 @@ async function processImgs(inputUrl, urlDepth = 0, html = "") {
 
       // Update the progress bar for zero depths
       await zeroDepthCounterUpdate();
-      
+
       // Check if the image is a duplicate and if not, add it to the list and prepare for download
       if (!checkDuplicate(imageName, urlImage)) {
         urlImage.push({ url: imageName });
