@@ -295,49 +295,50 @@ async function startScrapingProcess() {
   zip = new JSZip();
 }
 
-/*
- * Modify HTML to have PDFs linked correctly
- */
-async function processPDFs(inputUrl, urlDepth = 0, html = "") {
-  // Note the the Process PDFs has started
+async function processHTML(inputUrl, html = "") {
+  // Get the HTML data for each page
+  if (html == "") 
+    htmlData = await getData(inputUrl);
+  else
+    htmlData = html
+
+  // Parse the html string into a Dom Object
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(htmlData, "text/html");
+
+  // Note that one is processing PDFs has started
   console.log("Processing PDFs");
 
-  // Get the html data for each page
-  if (html === "") html = await getData(inputUrl);
-
-  let parser = new DOMParser();
-  let parsed = parser.parseFromString(html, "text/html");
-
-  // Loop through all the links on the found page
+  // Process PDFs
   Array.from(parsed.getElementsByTagName("a")).forEach(async (anchor) => {
-    let absoluteUrl = anchor.href;
-
-    // Update the progress bar for zero depths
-    await zeroDepthCounterUpdate();
-
-    // Exclude any non-PDFs
-    if (!absoluteUrl.includes(".pdf")) {
-      return;
-    }
-
     try {
-      let pdfName = getTitle(absoluteUrl);
+      // Absolute URL href
+      let absoluteUrl = anchor.href;
 
-      zip.file("pdf/" + pdfName, urlToPromise(absoluteUrl), { binary: true });
+      // Update the progress bar for depths
+      if (maxDepthValue == 0) await zeroDepthCounterUpdate();
 
-      let newHref = maxDepthValue >= 1 ? "../pdf/" + pdfName : "pdf/" + pdfName;
+      // Exclude an non-PDFs
+      if (!absoluteUrl.toString().includes(".pdf")) return;
 
-      anchor.setAttribute("href", newHref);
+      // Add the pdf to the zip folder
+      zip.file("pdf/" + getTitle(absoluteUrl), urlToPromise(absoluteUrl) { binary: true });
 
-      html = parsed.documentElement.innerHTML;
+      // Set the href with the new local file location
+      anchor.setAttribute("href", "../pdf/" + getTitle(absoluteUrl));
+
+      // Store the new htmlData 
+      htmlData = parsed.documentElement.innerHTML;
     } catch (error) {
       console.error(error);
     }
   });
 
-  // Return the HTML
+  // Update the parsed with the new htmlData
+  parsed = parsed.parseFromString(htmlData, "text/html");
+
   return new Promise((resolve, reject) => {
-    resolve(html);
+    resolve(htmlData);
   });
 }
 
