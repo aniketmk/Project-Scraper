@@ -562,15 +562,8 @@ async function processLinks() {
     // Get the total estimate of links to go through
     await zeroDepthCounterEstimator(currentPage);
 
-    // Start the HTML with some value
-    let html = getData(currentPage);
-
-    html = await getCSS(html, "html", currentPage);
-    html = await processPDFs(currentPage, maxDepthValue, html);
-    html = await processImgs(currentPage, maxDepthValue, html);
-    html = await processCSSs(currentPage, maxDepthValue, html);
-    html = await processJavacripts(currentPage, maxDepthValue, html);
-    html = await processVideos(currentPage, maxDepthValue, html);
+    // ProcessHTML
+    html = await processHTML(currentPage);
 
     zip.file("html/" + getTitle(currentPage) + ".html", html);
 
@@ -589,8 +582,14 @@ async function processLinks() {
 
     for (let url of urlList) {
       // Set the html value
-      if (html === "") html = getData(currentPage);
-      else html = getData(url);
+      if (html === "") {
+        html = getData(currentPage);
+        html = await processHTML(currentPage, html);
+      }
+      else {
+        html = getData(url);
+        html = await processHTML(url, html);
+      }
 
       // Update the progress
       currentCount++;
@@ -606,13 +605,6 @@ async function processLinks() {
 
       // Use requestAnimationFrame to ensure the DOM updates
       await new Promise((resolve) => requestAnimationFrame(resolve));
-
-      html = await getCSS(html, "html", url);
-      html = await processPDFs(url, maxDepthValue, html);
-      html = await processImgs(url, maxDepthValue, html);
-      html = await processCSSs(url, maxDepthValue, html);
-      html = await processJavacripts(url, maxDepthValue, html);
-      html = await processVideos(url, maxDepthValue, html);
 
       // Store the HTML in the zip object
       zip.file("html/" + getTitle(url) + ".html", html);
