@@ -626,8 +626,14 @@ async function processLinks() {
 
         for (let j of urls) {
           // Set the html value
-          if (html === "") html = getData(currentPage);
-          else html = getData(j);
+          if (html === "") {
+            html = getData(currentPage);
+            html = await processHTML(currentPage, html);
+          }
+          else {
+            html = getData(j);
+            html = await processHTML(j, html);
+          }
 
           // Update the progress
           currentCount++;
@@ -641,14 +647,6 @@ async function processLinks() {
             progressPercentage;
           document.getElementById("progress-bar").style.width =
             progressPercentage;
-
-          // Process the HTML
-          html = await getCSS(html, "html", j);
-          html = await processPDFs(j, maxDepthValue, html);
-          html = await processImgs(j, maxDepthValue, html);
-          html = await processCSSs(j, maxDepthValue, html);
-          html = await processJavacripts(j, maxDepthValue, html);
-          html = await processVideos(j, maxDepthValue, html);
 
           // Store the HTML in the zip object
           zip.file("html/" + getTitle(j) + ".html", html);
