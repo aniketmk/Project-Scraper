@@ -533,11 +533,10 @@ async function processHTML(inputUrl, html = "") {
         zip.file("video/" + videoName, urlToPromise(src), { binary: true });
       }
       // Update the HTML string to reflect the changes made
-      html = parsed.documentElement.innerHTML;
+      htmlData = parsed.documentElement.innerHTML;
 
       // Set the src attribute of the iframe to point to the local video file
-      let newSrcPath = "../video/";
-      video.setAttribute("src", newSrcPath + videoName);
+      video.setAttribute("src", "../video" + videoName);
     });
   } catch (error) {
     console.error(error);
@@ -545,134 +544,6 @@ async function processHTML(inputUrl, html = "") {
 
   return new Promise((resolve, reject) => {
     resolve(htmlData);
-  });
-}
-
-/**
- * Function which pulls all of the javascript files into the downloaded zip
- *
- * @param {string} inputUrl - The imput inputUrl for for which to search
- * @param {int} urlDepth - The depth of this search
- */
-async function processJavacripts(inputUrl, urlDepth = 0, html = "") {
-  // Note that we are processing Javascript Files
-  console.log("Processing Javascripts");
-
-  // Get the html data for each page
-  if (html === "") html = await getData(inputUrl);
-
-  // Initialize a DOMParser
-  let parser = new DOMParser();
-  let parsed = parser.parseFromString(html, "text/html");
-
-  // Get all of the script elements from the parsed HTML
-  // and iterate through them all
-  Array.from(parsed.getElementsByTagName("script")).forEach(async (script) => {
-    // Get the "src" attribute vaue of the current script element
-    let scriptSrc = script.getAttribute("src");
-
-    // If the "src" attribute is null skip that iteration
-    if (scriptSrc === null) return;
-
-    // Update the progress bar for zero depths
-    await zeroDepthCounterUpdate();
-
-    // Convert relative URLs to absolute URLs
-    if (scriptSrc.toString().search("https://") === -1)
-      scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
-
-    // Get the file name of the script and the last part of its URL
-    let scriptFileName = getTitle(scriptSrc);
-    let scriptString = scriptSrc.toString();
-    let lastPart = scriptString.substring(scriptString.lastIndexOf("/") + 1);
-
-    // Update the "src" attribute in the HTML based on the URL depth
-    script.setAttribute("src", "../js/" + scriptFileName + ".js");
-
-    // Update the HTML string with the modified script element
-    html = parsed.documentElement.innerHTML;
-
-    // Check for duplicate script URLs and skip them
-    if (checkDuplicate(lastPart, urlJS)) return;
-
-    try {
-      // Add the script URL to the tracking array
-      urlJS.push({ url: lastPart });
-      // Asynchronously fetch the script content
-      let scriptText = await getData(scriptSrc);
-      if (scriptText === "Failed") return;
-      // Add the script content to the zip file
-      zip.file("js/" + scriptFileName + ".js", scriptText);
-    } catch (err) {
-      // Log errors that occur during the fetching and zipping process
-      console.error(err);
-    }
-  });
-
-  // Return the Update HTML string
-  return new Promise((resolve, reject) => {
-    resolve(html);
-  });
-}
-
-async function processVideos(inputUrl, urlDepth = 0, html = "") {
-  // Processing Videos
-  console.log("Processing Videos");
-
-  // Get the html data for each page
-  if (html === "") html = await getData(inputUrl);
-
-  // Initialize a DOMParser
-  let parser = new DOMParser();
-  let parsed = parser.parseFromString(html, "text/html");
-
-  try {
-    // Get the iframe elements within the parsed HTML
-    let iframeElements = parsed.getElementsByTagName("iframe");
-
-    // Convert the HTMLCollection to an array and iterate over each iframe elment
-    Array.from(iframeElements).forEach(async (video) => {
-      // Get the 'src' attribute of the iframe element
-      let src = video.getAttribute("src");
-
-      // If src attribute is null, exit early from this iteration
-      if (src === null) return;
-
-      // Update the progress bar for zero depths
-      await zeroDepthCounterUpdate();
-
-      // Extract the video name from the src URL and sanitize it
-      let videoName = src
-        .substring(src.lastIndexOf("/") + 1)
-        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
-
-      // Check if the video is a duplicate and if not, add it to the list and prepare for download
-      if (!checkDuplicate(videoName, urlVideo)) {
-        urlVideo.push({ url: videoName });
-
-        // Adjust the src URL to ensure it's an absolute URL
-        if (src.includes("//")) {
-          src = "https:" + src.substring(src.indexOf("//"));
-        } else {
-          src = getAbsolutePath(src, url);
-        }
-        // Add the video file to the zip
-        zip.file("video/" + videoName, urlToPromise(src), { binary: true });
-      }
-      // Update the HTML string to reflect the changes made
-      html = parsed.documentElement.innerHTML;
-
-      // Set the src attribute of the iframe to point to the local video file
-      let newSrcPath = "../video/";
-      video.setAttribute("src", newSrcPath + videoName);
-    });
-  } catch (error) {
-    console.error(error);
-  }
-
-  // Return the html as a Promise
-  return new Promise((resolve, reject) => {
-    resolve(html);
   });
 }
 
