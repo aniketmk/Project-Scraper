@@ -497,6 +497,52 @@ async function processHTML(inputUrl, html = "") {
     }
   });
 
+  parsed = parsed.parseFromString(htmlData, "text/html");
+
+  try {
+    // Get the iframe elements within the parsed HTML
+    let iframeElements = parsed.getElementsByTagName("iframe");
+
+    // Convert the HTMLCollection to an array and iterate over each iframe elment
+    Array.from(iframeElements).forEach(async (video) => {
+      // Get the 'src' attribute of the iframe element
+      let src = video.getAttribute("src");
+
+      // If src attribute is null, exit early from this iteration
+      if (src === null) return;
+
+      // Update the progress bar for zero depths
+      await zeroDepthCounterUpdate();
+
+      // Extract the video name from the src URL and sanitize it
+      let videoName = src
+        .substring(src.lastIndexOf("/") + 1)
+        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+
+      // Check if the video is a duplicate and if not, add it to the list and prepare for download
+      if (!checkDuplicate(videoName, urlVideo)) {
+        urlVideo.push({ url: videoName });
+
+        // Adjust the src URL to ensure it's an absolute URL
+        if (src.includes("//")) {
+          src = "https:" + src.substring(src.indexOf("//"));
+        } else {
+          src = getAbsolutePath(src, url);
+        }
+        // Add the video file to the zip
+        zip.file("video/" + videoName, urlToPromise(src), { binary: true });
+      }
+      // Update the HTML string to reflect the changes made
+      html = parsed.documentElement.innerHTML;
+
+      // Set the src attribute of the iframe to point to the local video file
+      let newSrcPath = "../video/";
+      video.setAttribute("src", newSrcPath + videoName);
+    });
+  } catch (error) {
+    console.error(error);
+  }
+
   return new Promise((resolve, reject) => {
     resolve(htmlData);
   });
