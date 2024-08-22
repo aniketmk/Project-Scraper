@@ -444,6 +444,52 @@ async function processHTML(inputUrl, html = "") {
   // Update the htmlData with new parsed data
   parsed = parsed.parseFromString(htmlData, "text/html");
   
+  // Note that one is now Processing Javascript
+  console.log("Processing Javascript Files")
+
+  // Get all of the script elements from the parsed HTML
+  Array.from(parsed.getElementsByTagName("script")).forEach(async (script) => {
+    try {
+    // Get the "src" attribute vaue of the current script element
+    let scriptSrc = script.getAttribute("src");
+
+    // If the "src" attribute is null skip that iteration
+    if (scriptSrc === null) return;
+
+    // Update the progress bar for zero depths
+    if (maxDepthValue === 0) await zeroDepthCounterUpdate();
+
+    // Convert relative URLs to absolute URLs
+    if (scriptSrc.toString().search("https://") === -1)
+      scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
+
+    // Get the file name of the script and the last part of its URL
+    let scriptFileName = getTitle(scriptSrc);
+    let scriptString = scriptSrc.toString();
+    let lastPart = scriptString.substring(scriptString.lastIndexOf("/") + 1);
+
+    // Update the "src" attribute in the HTML based on the URL depth
+    script.setAttribute("src", "../js/" + scriptFileName + ".js");
+
+    // Update the HTML string with the modified script element
+    htmlData = parsed.documentElement.innerHTML;
+
+    // Check for duplicate script URLs and skip them
+    if (checkDuplicate(lastPart, urlJS)) return;
+
+    
+      // Add the script URL to the tracking array
+      urlJS.push({ url: lastPart });
+      // Asynchronously fetch the script content
+      let scriptText = await getData(scriptSrc);
+      if (scriptText === "Failed") return;
+      // Add the script content to the zip file
+      zip.file("js/" + scriptFileName + ".js", scriptText);
+    } catch (err) {
+      // Log errors that occur during the fetching and zipping process
+      console.error(err);
+    }
+  });
 
   return new Promise((resolve, reject) => {
     resolve(htmlData);
