@@ -322,7 +322,7 @@ async function processHTML(inputUrl, html = "") {
       if (!absoluteUrl.toString().includes(".pdf")) return;
 
       // Add the pdf to the zip folder
-      zip.file("pdf/" + getTitle(absoluteUrl), urlToPromise(absoluteUrl) { binary: true });
+      zip.file("pdf/" + getTitle(absoluteUrl), urlToPromise(absoluteUrl), { binary: true });
 
       // Set the href with the new local file location
       anchor.setAttribute("href", "../pdf/" + getTitle(absoluteUrl));
@@ -384,37 +384,22 @@ async function processHTML(inputUrl, html = "") {
 
   // Update the parsed with the new htmlData
   parsed = parsed.parseFromString(htmlData, "text/html");
-  
-  return new Promise((resolve, reject) => {
-    resolve(htmlData);
-  });
-}
 
-/*
- * Process the CSS files
- */
-async function processCSSs(inputUrl, urlDepth = 0, html = "") {
-  // Note that the CSS is being processed
-  console.log("Processing CSS");
+  // Note that CSS is now being Processed
+  console.log("Processing CSS Files")
 
-  // Get the html data for each page
-  if (html === "") html = await getData(inputUrl);
+  Array.from(parsed.getElementsByTagName("link")).forEach(async (stylesheet)=> {
+    try {
+      // Process only Stylesheet and Preload
+      // ToDo: Check if rel is preload and a stylesheet
+      if (stylesheet.getAttribute("rel") !== "stylesheet") return;
 
-  let parser = new DOMParser();
-  let parsed = parser.parseFromString(html, "text/html");
+      // Update the progress bar for depths
+      if (maxDepthValue == 0) await zeroDepthCounterUpdate();
 
-  // Iterate through each
-  for (const stylesheet of parsed.getElementsByTagName("link")) {
-    // Skip everything that is not a stylesheet
-    if (
-      stylesheet.getAttribute("rel") == "stylesheet" ||
-      stylesheet.getAttribute("rel") == "preload"
-    ) {
+      // Set the relative and absolute paths
       let relativePath = stylesheet.getAttribute("href");
       let absoluteUrl = stylesheet.href;
-
-      // Update the progress bar for zero depths
-      await zeroDepthCounterUpdate();
 
       // Check if the path includes https and set the correct absoluteUrl
       if (!relativePath.includes("https://"))
@@ -422,38 +407,45 @@ async function processCSSs(inputUrl, urlDepth = 0, html = "") {
 
       // Assure that the chrome-extension Urls are corrected to the absolute urls
       if (
-        absoluteUrl.toString().includes("chrome-extension://" + extId) ||
-        absoluteUrl.toString().includes("chrome-extension://")
+        absoluteUrl.includes("chrome-extension://" + extId) ||
+        absoluteUrl.startsWith("chrome-extension://")
       )
         absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+      
+      // Set the file location for each CSS file
+      stylesheet.setAttribute("href", "../css/" + getTitle(absoluteUrl) + ".css");
 
-      let cssFileName = getTitle(absoluteUrl);
+      // Store the new path in HTML document
+      htmlData = parsed.documentElement.innerHTML;
 
-      // Set the file location for each css file
-      stylesheet.setAttribute("href", "../css/" + cssFileName + ".css");
+      // Check for duplicates
+      if (urlCSSs.includes(absoluteUrl)) continue;
 
-      html = parsed.documentElement.innerHTML;
+      // Add to the urlCSSs array
+      urlCSSs.push(absoluteUrl)
 
-      if (urlCSS.toString().includes(absoluteUrl)) continue;
+      // Get the page data for CSSText
+      let cssText = await getData(absoluteUrl);
 
-      try {
-        urlCSS.push(absoluteUrl);
+      // Check if the CSS has failed
+      if (cssText === "Failed") continue;
 
-        let cssText = await getData(absoluteUrl);
+      // ToDo: Implement getCSSImage
+      cssFileText = await getCSS(cssText, "css", absoluteUrl);
 
-        if (cssText === "Failed") continue;
-
-        // ToDo: Implement getCSSImage
-        cssFileText = await getCSS(cssText, "css", absoluteUrl);
-
-        zip.file("css/" + cssFileName + ".css", cssFileText);
-      } catch (error) {
-        console.error(error);
-      }
+      // Store the css file in zip
+      zip.file("css/" + cssFileName + ".css", cssFileText)
+    } catch(error) {
+      console.error(error);
     }
-  }
+  });
+
+  // Update the htmlData with new parsed data
+  parsed = parsed.parseFromString(htmlData, "text/html");
+  
+
   return new Promise((resolve, reject) => {
-    resolve(html);
+    resolve(htmlData);
   });
 }
 
