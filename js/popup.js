@@ -298,6 +298,12 @@ async function startScrapingProcess() {
   zip = new JSZip();
 }
 
+/**
+ * 
+ * @param {*} inputUrl - The URL to be processed
+ * @param {*} html - The HTML to be processed
+ * @returns 
+ */
 async function processHTML(inputUrl, html = "") {
   // Get the HTML data for each page
   if (html == "") htmlData = await getData(inputUrl);
@@ -320,7 +326,7 @@ async function processHTML(inputUrl, html = "") {
       if (maxDepthValue == 0) await zeroDepthCounterUpdate();
 
       // Exclude an non-PDFs
-      if (!absoluteUrl.toString().includes(".pdf")) return;
+      if (!absoluteUrl.includes(".pdf")) return;
 
       // Add the pdf to the zip folder
       zip.file("pdf/" + getTitle(absoluteUrl), urlToPromise(absoluteUrl), {
@@ -338,7 +344,7 @@ async function processHTML(inputUrl, html = "") {
   });
 
   // Update the parsed with the new htmlData
-  parsed = parsed.parseFromString(htmlData, "text/html");
+  parsed = parser.parseFromString(htmlData, "text/html");
 
   // Note that the Process for Images has Started
   console.log("Processing Images");
@@ -350,14 +356,14 @@ async function processHTML(inputUrl, html = "") {
       let imgSrc = img.getAttribute("src");
 
       // Update the progress bar for depths
-      if (maxDepthValue == 0) await zeroDepthCounterUpdate();
+      if (maxDepthValue === 0) await zeroDepthCounterUpdate();
 
       // If src attribute is null or a base64 encoded image, skip this iteration
       if (imgSrc === null || imgSrc.includes("base64")) return;
 
       // Extract the image name from the src URL and sanitize it
       let imageName = imgSrc
-        .substring(simgSrc.lastIndexOf("/") + 1)
+        .substring(imgSrc.lastIndexOf("/") + 1)
         .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
 
       // Check if the image is a duplicate if not storage that image name
@@ -385,7 +391,7 @@ async function processHTML(inputUrl, html = "") {
   });
 
   // Update the parsed with the new htmlData
-  parsed = parsed.parseFromString(htmlData, "text/html");
+  parsed = parser.parseFromString(htmlData, "text/html");
 
   // Note that CSS is now being Processed
   console.log("Processing CSS Files");
@@ -438,10 +444,10 @@ async function processHTML(inputUrl, html = "") {
         if (cssText === "Failed") return;
 
         // ToDo: Implement getCSSImage
-        cssFileText = await getCSS(cssText, "css", absoluteUrl);
+        // cssFileText = await getCSS(cssText, "css", absoluteUrl);
 
         // Store the css file in zip
-        zip.file("css/" + cssFileName + ".css", cssFileText);
+        zip.file("css/" + getTitle(absoluteUrl) + ".css", cssText);
       } catch (error) {
         console.error(error);
       }
@@ -449,7 +455,7 @@ async function processHTML(inputUrl, html = "") {
   );
 
   // Update the htmlData with new parsed data
-  parsed = parsed.parseFromString(htmlData, "text/html");
+  parsed = parser.parseFromString(htmlData, "text/html");
 
   // Note that one is now Processing Javascript
   console.log("Processing Javascript Files");
@@ -482,10 +488,10 @@ async function processHTML(inputUrl, html = "") {
       htmlData = parsed.documentElement.innerHTML;
 
       // Check for duplicate script URLs and skip them
-      if (checkDuplicate(lastPart, urlJS)) return;
+      if (urlJSs.includes(lastPart)) return;
 
       // Add the script URL to the tracking array
-      urlJS.push({ url: lastPart });
+      urlJSs.push(lastPart);
       // Asynchronously fetch the script content
       let scriptText = await getData(scriptSrc);
       if (scriptText === "Failed") return;
@@ -497,14 +503,14 @@ async function processHTML(inputUrl, html = "") {
     }
   });
 
-  parsed = parsed.parseFromString(htmlData, "text/html");
+  parsed = parser.parseFromString(htmlData, "text/html");
 
-  try {
-    // Get the iframe elements within the parsed HTML
-    let iframeElements = parsed.getElementsByTagName("iframe");
+  // Note the Processing Videos has started
+  console.log("Processing Video Files")
 
-    // Convert the HTMLCollection to an array and iterate over each iframe elment
-    Array.from(iframeElements).forEach(async (video) => {
+  // Convert the HTMLCollection to an array and iterate over each iframe elment
+  Array.from(parsed.getElementsByTagName("iframe")).forEach(async (video) => {
+    try {
       // Get the 'src' attribute of the iframe element
       let src = video.getAttribute("src");
 
@@ -512,7 +518,7 @@ async function processHTML(inputUrl, html = "") {
       if (src === null) return;
 
       // Update the progress bar for zero depths
-      await zeroDepthCounterUpdate();
+      if (maxDepthValue === 0) await zeroDepthCounterUpdate();
 
       // Extract the video name from the src URL and sanitize it
       let videoName = src
@@ -520,8 +526,8 @@ async function processHTML(inputUrl, html = "") {
         .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
 
       // Check if the video is a duplicate and if not, add it to the list and prepare for download
-      if (!checkDuplicate(videoName, urlVideo)) {
-        urlVideo.push({ url: videoName });
+      if (!urlVideos.includes(videoName)) {
+        urlVideos.push(videoName);
 
         // Adjust the src URL to ensure it's an absolute URL
         if (src.includes("//")) {
@@ -536,11 +542,11 @@ async function processHTML(inputUrl, html = "") {
       htmlData = parsed.documentElement.innerHTML;
 
       // Set the src attribute of the iframe to point to the local video file
-      video.setAttribute("src", "../video" + videoName);
-    });
-  } catch (error) {
-    console.error(error);
-  }
+      video.setAttribute("src", "../video/" + videoName);
+    } catch (error) {
+      console.error(error);
+    }
+  });
 
   return new Promise((resolve, reject) => {
     resolve(htmlData);
@@ -585,8 +591,7 @@ async function processLinks() {
       if (html === "") {
         html = getData(currentPage);
         html = await processHTML(currentPage, html);
-      }
-      else {
+      } else {
         html = getData(url);
         html = await processHTML(url, html);
       }
@@ -629,8 +634,7 @@ async function processLinks() {
           if (html === "") {
             html = getData(currentPage);
             html = await processHTML(currentPage, html);
-          }
-          else {
+          } else {
             html = getData(j);
             html = await processHTML(j, html);
           }
@@ -657,10 +661,6 @@ async function processLinks() {
       }
     }
   }
-
-  return new Promise((resolve, reject) => {
-    resolve();
-  });
 }
 
 /**
@@ -792,69 +792,6 @@ async function getCSS(data, place, urlFile) {
 }
 
 /**
- * Asynchronously processes HTML data to find and modify links to point to local files,
- * and downloads linked PDF files to include in a zip file. The function is recursive
- * and will scrape links up to a specified maximum depth.
- *
- * @param {string} html - The HTML data as a string.
- * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
- */
-async function getLinks(html, url, urlDepth) {
-  if (urlDepth < depth) {
-    // Check if the current scraping depth is less than the maximum allowed depth
-    // Parse the HTML text into a DOM object
-    let parser = new DOMParser();
-    let parsed = parser.parseFromString(html, "text/html");
-    // Get all links within the HTML data
-    let links = parsed.getElementsByTagName("a");
-    // Loop through all found links
-    for (let j = 0; j < links.length; j++) {
-      let relative = links[j].getAttribute("href"); // Get the relative path of the link
-      let link = links[j].href; // Get the absolute URL of the link
-      // Check if the link contains unwanted strings or has been visited already,
-      // or if the link is empty, then skip processing this link
-      if (
-        link.includes("mailto") ||
-        link.includes("tel") ||
-        link.includes("#") ||
-        checkDuplicate(link, urlList) ||
-        link.length === 0
-      )
-        continue;
-      // Correct the format of the link if necessary
-      if (link.includes("chrome-extension://" + extId))
-        link = getAbsolutePath(relative, url);
-      console.log("adding to list:" + link);
-      // Add the link to the list of URLs to be scraped, increasing the scraping depth
-      urlList.push({ url: link, depth: urlDepth + 1 });
-      // If the link is not to a PDF file, modify the href attribute to point to a local HTML file
-      if (!link.includes(".pdf")) {
-        let linkTitle = getTitle(link);
-        let newHref =
-          urlDepth >= 1 ? linkTitle + ".html" : "html/" + linkTitle + ".html";
-        links[j].setAttribute("href", newHref);
-        // Update the HTML data to reflect the changes
-        html = parsed.documentElement.innerHTML;
-        continue;
-      }
-      // If the link is to a PDF file, download the PDF and modify the href attribute to point to the local PDF file
-      try {
-        let pdfName = getTitle(link) + ".pdf";
-        zip.file("pdf/" + pdfName, urlToPromise(link), { binary: true });
-        let newHref = urlDepth >= 1 ? "../pdf/" + pdfName : "pdf/" + pdfName;
-        links[j].setAttribute("href", newHref);
-      } catch (error) {
-        console.error(error);
-      }
-      // Update the HTML data to reflect the changes
-      html = parsed.documentElement.innerHTML;
-    }
-  }
-  // Return the modified HTML data
-  return html;
-}
-
-/**
  * Asynchronously processes HTML data to find and modify <iframe> elements to point to local video files,
  * and downloads video files to include in a zip file.
  *
@@ -955,45 +892,3 @@ async function getImgs(html, url, urlDepth) {
   return html;
 }
 
-/******************************************************SCRAPING FUNCTIONS - END*************************************************************/
-
-/**
- * Given the URL and URL depth, updates the zip files and adds more URLs to the list.
- *
- * @param {string} url - The URL to scrape.
- * @param {number} urlDepth - The depth of URLs to scrape.
- * @returns {Promise<string>} - A promise that resolves with the scraped HTML content.
- */
-async function scrapeHtml(url, urlDepth) {
-  let html = "";
-
-  // Nested function to initiate the scraping process
-  const scrape = async (url) => {
-    try {
-      console.log("Scraping URL:", url);
-      html = await getData(url); // Get the HTML of the URL
-
-      try {
-        // Download various resources from the webpage
-        html = await getJavaScript(html, url, urlDepth); // Download external JavaScript files
-        html = await getCSS(html, url, urlDepth); // Download CSS file
-        // Download images if the user has not opted to exclude them
-        if (!isFocusMode) {
-          html = await getImgs(html, url, urlDepth);
-        }
-        // Get additional resources like CSS images, videos, and links
-        html = await getCSSImg(html, "html", url, urlDepth);
-        html = await getVideos(html, url, urlDepth);
-        html = await getLinks(html, url, urlDepth);
-      } catch (err) {
-        console.error("Error in resource download:", err);
-      }
-
-      return html; // Return the modified HTML
-    } catch (err) {
-      console.error("Error in scraping:", err);
-    }
-  };
-
-  return await scrape(url); // Start the scraping process and return the result
-}
