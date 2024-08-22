@@ -391,65 +391,6 @@ async function processHTML(inputUrl, html = "") {
 }
 
 /*
- * Process the Image Files
- */
-async function processImgs(inputUrl, urlDepth = 0, html = "") {
-  try {
-    // Note that we are now Processing Images
-    console.log("Processing Images");
-
-    // Get the html data for each page
-    if (html === "") html = await getData(inputUrl);
-
-    // Parse the HTML string into a DOM object
-    let parser = new DOMParser();
-    let parsed = parser.parseFromString(html, "text/html");
-
-    // Get all of the image tags
-    let imageElements = parsed.getElementsByTagName("img");
-
-    // Iterate over each image elmeent and process it
-    Array.from(imageElements).forEach(async (img) => {
-      let src = img.getAttribute("src");
-      // If src attribute is null or a base64 encoded image, skip this iteration
-      if (src === null || src.includes("base64")) return;
-      // Extract the image name from the src URL and sanitize it
-      let imageName = src
-        .substring(src.lastIndexOf("/") + 1)
-        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
-
-      // Update the progress bar for zero depths
-      await zeroDepthCounterUpdate();
-
-      // Check if the image is a duplicate and if not, add it to the list and prepare for download
-      if (!checkDuplicate(imageName, urlImage)) {
-        urlImage.push({ url: imageName });
-        // Adjust the src URL to ensure it's an absolute URL
-        if (src.includes("//")) {
-          src = "https:" + src.substring(src.indexOf("//"));
-        } else {
-          src = getAbsolutePath(src, inputUrl);
-        }
-        // Add the image file to the zip
-        zip.file("img/" + imageName, urlToPromise(src), { binary: true });
-      }
-      // Set the src attribute of the img to point to the local image file
-      let newSrcPath = "../img/";
-      img.setAttribute("src", newSrcPath + imageName);
-    });
-
-    html = parsed.documentElement.innerHTML;
-  } catch (error) {
-    // Log any errors that are encountered during the process
-    console.error(error);
-  }
-
-  return new Promise((resolve, reject) => {
-    resolve(html);
-  });
-}
-
-/*
  * Process the CSS files
  */
 async function processCSSs(inputUrl, urlDepth = 0, html = "") {
