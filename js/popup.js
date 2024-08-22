@@ -297,7 +297,7 @@ async function startScrapingProcess() {
 
 async function processHTML(inputUrl, html = "") {
   // Get the HTML data for each page
-  if (html == "") 
+  if (html == "")
     htmlData = await getData(inputUrl);
   else
     htmlData = html
