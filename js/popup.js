@@ -92,8 +92,11 @@ function checkDownloadFlag() {
  * Start the scraping process and download the current page.
  */
 function downloadPage() {
-  [startingURLInput, isFocusMode, isRestrictDomain] =
-    [currentPage, isFocusMode, isRestrictDomain];
+  [startingURLInput, isFocusMode, isRestrictDomain] = [
+    currentPage,
+    isFocusMode,
+    isRestrictDomain,
+  ];
 
   // Calling function to set download flag
   setDownloadFlag(true);
@@ -297,10 +300,8 @@ async function startScrapingProcess() {
 
 async function processHTML(inputUrl, html = "") {
   // Get the HTML data for each page
-  if (html == "")
-    htmlData = await getData(inputUrl);
-  else
-    htmlData = html
+  if (html == "") htmlData = await getData(inputUrl);
+  else htmlData = html;
 
   // Parse the html string into a Dom Object
   let parser = new DOMParser();
@@ -322,12 +323,14 @@ async function processHTML(inputUrl, html = "") {
       if (!absoluteUrl.toString().includes(".pdf")) return;
 
       // Add the pdf to the zip folder
-      zip.file("pdf/" + getTitle(absoluteUrl), urlToPromise(absoluteUrl), { binary: true });
+      zip.file("pdf/" + getTitle(absoluteUrl), urlToPromise(absoluteUrl), {
+        binary: true,
+      });
 
       // Set the href with the new local file location
       anchor.setAttribute("href", "../pdf/" + getTitle(absoluteUrl));
 
-      // Store the new htmlData 
+      // Store the new htmlData
       htmlData = parsed.documentElement.innerHTML;
     } catch (error) {
       console.error(error);
@@ -338,7 +341,7 @@ async function processHTML(inputUrl, html = "") {
   parsed = parsed.parseFromString(htmlData, "text/html");
 
   // Note that the Process for Images has Started
-  console.log("Processing Images")
+  console.log("Processing Images");
 
   // Process Images
   Array.from(parsed.getElementsByTagName("img")).forEach(async (img) => {
@@ -365,19 +368,18 @@ async function processHTML(inputUrl, html = "") {
         // Adjust the srcUrl to ensure it's an absolute URL
         if (imgSrc.includes("//"))
           imgSrc = "https:" + imgSrc.substring(imgSrc.indexOf("//"));
-        else
-          imgSrc = getAbsolutePath(imgSrc, inputUrl);
+        else imgSrc = getAbsolutePath(imgSrc, inputUrl);
 
         // Add the img file to the zip
-        zip.file("img/" + imageName, urlToPromise(imgSrc), { binary: true})
+        zip.file("img/" + imageName, urlToPromise(imgSrc), { binary: true });
       }
-      
+
       // Update the image attribute
       img.setAttribute("src", "../img/" + imageName);
 
       // Update the HTML
       htmlData = parsed.documentElement.innerHTML;
-    } catch(error) {
+    } catch (error) {
       console.error(error);
     }
   });
@@ -386,98 +388,102 @@ async function processHTML(inputUrl, html = "") {
   parsed = parsed.parseFromString(htmlData, "text/html");
 
   // Note that CSS is now being Processed
-  console.log("Processing CSS Files")
+  console.log("Processing CSS Files");
 
   // Process CSSs
-  Array.from(parsed.getElementsByTagName("link")).forEach(async (stylesheet)=> {
-    try {
-      // Process only Stylesheet and Preload
-      // ToDo: Check if rel is preload and a stylesheet
-      if (stylesheet.getAttribute("rel") !== "stylesheet") return;
+  Array.from(parsed.getElementsByTagName("link")).forEach(
+    async (stylesheet) => {
+      try {
+        // Process only Stylesheet and Preload
+        // ToDo: Check if rel is preload and a stylesheet
+        if (stylesheet.getAttribute("rel") !== "stylesheet") return;
 
-      // Update the progress bar for depths
-      if (maxDepthValue == 0) await zeroDepthCounterUpdate();
+        // Update the progress bar for depths
+        if (maxDepthValue == 0) await zeroDepthCounterUpdate();
 
-      // Set the relative and absolute paths
-      let relativePath = stylesheet.getAttribute("href");
-      let absoluteUrl = stylesheet.href;
+        // Set the relative and absolute paths
+        let relativePath = stylesheet.getAttribute("href");
+        let absoluteUrl = stylesheet.href;
 
-      // Check if the path includes https and set the correct absoluteUrl
-      if (!relativePath.includes("https://"))
-        absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+        // Check if the path includes https and set the correct absoluteUrl
+        if (!relativePath.includes("https://"))
+          absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
-      // Assure that the chrome-extension Urls are corrected to the absolute urls
-      if (
-        absoluteUrl.includes("chrome-extension://" + extId) ||
-        absoluteUrl.startsWith("chrome-extension://")
-      )
-        absoluteUrl = getAbsolutePath(relativePath, inputUrl);
-      
-      // Set the file location for each CSS file
-      stylesheet.setAttribute("href", "../css/" + getTitle(absoluteUrl) + ".css");
+        // Assure that the chrome-extension Urls are corrected to the absolute urls
+        if (
+          absoluteUrl.includes("chrome-extension://" + extId) ||
+          absoluteUrl.startsWith("chrome-extension://")
+        )
+          absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
-      // Store the new path in HTML document
-      htmlData = parsed.documentElement.innerHTML;
+        // Set the file location for each CSS file
+        stylesheet.setAttribute(
+          "href",
+          "../css/" + getTitle(absoluteUrl) + ".css"
+        );
 
-      // Check for duplicates
-      if (urlCSSs.includes(absoluteUrl)) return;
+        // Store the new path in HTML document
+        htmlData = parsed.documentElement.innerHTML;
 
-      // Add to the urlCSSs array
-      urlCSSs.push(absoluteUrl)
+        // Check for duplicates
+        if (urlCSSs.includes(absoluteUrl)) return;
 
-      // Get the page data for CSSText
-      let cssText = await getData(absoluteUrl);
+        // Add to the urlCSSs array
+        urlCSSs.push(absoluteUrl);
 
-      // Check if the CSS has failed
-      if (cssText === "Failed") return;
+        // Get the page data for CSSText
+        let cssText = await getData(absoluteUrl);
 
-      // ToDo: Implement getCSSImage
-      cssFileText = await getCSS(cssText, "css", absoluteUrl);
+        // Check if the CSS has failed
+        if (cssText === "Failed") return;
 
-      // Store the css file in zip
-      zip.file("css/" + cssFileName + ".css", cssFileText)
-    } catch(error) {
-      console.error(error);
+        // ToDo: Implement getCSSImage
+        cssFileText = await getCSS(cssText, "css", absoluteUrl);
+
+        // Store the css file in zip
+        zip.file("css/" + cssFileName + ".css", cssFileText);
+      } catch (error) {
+        console.error(error);
+      }
     }
-  });
+  );
 
   // Update the htmlData with new parsed data
   parsed = parsed.parseFromString(htmlData, "text/html");
-  
+
   // Note that one is now Processing Javascript
-  console.log("Processing Javascript Files")
+  console.log("Processing Javascript Files");
 
   // Get all of the script elements from the parsed HTML
   Array.from(parsed.getElementsByTagName("script")).forEach(async (script) => {
     try {
-    // Get the "src" attribute vaue of the current script element
-    let scriptSrc = script.getAttribute("src");
+      // Get the "src" attribute vaue of the current script element
+      let scriptSrc = script.getAttribute("src");
 
-    // If the "src" attribute is null skip that iteration
-    if (scriptSrc === null) return;
+      // If the "src" attribute is null skip that iteration
+      if (scriptSrc === null) return;
 
-    // Update the progress bar for zero depths
-    if (maxDepthValue === 0) await zeroDepthCounterUpdate();
+      // Update the progress bar for zero depths
+      if (maxDepthValue === 0) await zeroDepthCounterUpdate();
 
-    // Convert relative URLs to absolute URLs
-    if (scriptSrc.toString().search("https://") === -1)
-      scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
+      // Convert relative URLs to absolute URLs
+      if (scriptSrc.toString().search("https://") === -1)
+        scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
 
-    // Get the file name of the script and the last part of its URL
-    let scriptFileName = getTitle(scriptSrc);
-    let scriptString = scriptSrc.toString();
-    let lastPart = scriptString.substring(scriptString.lastIndexOf("/") + 1);
+      // Get the file name of the script and the last part of its URL
+      let scriptFileName = getTitle(scriptSrc);
+      let scriptString = scriptSrc.toString();
+      let lastPart = scriptString.substring(scriptString.lastIndexOf("/") + 1);
 
-    // Update the "src" attribute in the HTML based on the URL depth
-    script.setAttribute("src", "../js/" + scriptFileName + ".js");
+      // Update the "src" attribute in the HTML based on the URL depth
+      script.setAttribute("src", "../js/" + scriptFileName + ".js");
 
-    // Update the HTML string with the modified script element
-    htmlData = parsed.documentElement.innerHTML;
+      // Update the HTML string with the modified script element
+      htmlData = parsed.documentElement.innerHTML;
 
-    // Check for duplicate script URLs and skip them
-    if (checkDuplicate(lastPart, urlJS)) return;
+      // Check for duplicate script URLs and skip them
+      if (checkDuplicate(lastPart, urlJS)) return;
 
-    
       // Add the script URL to the tracking array
       urlJS.push({ url: lastPart });
       // Asynchronously fetch the script content
@@ -988,11 +994,9 @@ async function getVideos(html, url, urlDepth) {
   } catch (err) {
     // Log any errors encountered during the process
     console.error(err);
-
   }
   // Return the (potentially unmodified) HTML string
   return html;
-
 }
 
 /**
