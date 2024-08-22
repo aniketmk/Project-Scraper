@@ -388,6 +388,7 @@ async function processHTML(inputUrl, html = "") {
   // Note that CSS is now being Processed
   console.log("Processing CSS Files")
 
+  // Process CSSs
   Array.from(parsed.getElementsByTagName("link")).forEach(async (stylesheet)=> {
     try {
       // Process only Stylesheet and Preload
@@ -419,7 +420,7 @@ async function processHTML(inputUrl, html = "") {
       htmlData = parsed.documentElement.innerHTML;
 
       // Check for duplicates
-      if (urlCSSs.includes(absoluteUrl)) continue;
+      if (urlCSSs.includes(absoluteUrl)) return;
 
       // Add to the urlCSSs array
       urlCSSs.push(absoluteUrl)
@@ -428,7 +429,7 @@ async function processHTML(inputUrl, html = "") {
       let cssText = await getData(absoluteUrl);
 
       // Check if the CSS has failed
-      if (cssText === "Failed") continue;
+      if (cssText === "Failed") return;
 
       // ToDo: Implement getCSSImage
       cssFileText = await getCSS(cssText, "css", absoluteUrl);
