@@ -119,10 +119,10 @@ let startingURLInput = "";
 
 // Lists to keep track of different types of URLs and avoid duplicates
 let urlList = [];
-let urlCSS = [];
-let urlImage = [];
-let urlVideo = [];
-let urlJS = [];
+let urlCSSs = [];
+let urlImages = [];
+let urlVideos = [];
+let urlJSs = [];
 
 // Keep track of base count for when links are at 0 depth
 let zeroDepthCounter = 0;
@@ -337,6 +337,54 @@ async function processHTML(inputUrl, html = "") {
   // Update the parsed with the new htmlData
   parsed = parsed.parseFromString(htmlData, "text/html");
 
+  // Note that the Process for Images has Started
+  console.log("Processing Images")
+
+  // Process Images
+  Array.from(parsed.getElementsByTagName("img")).forEach(async (img) => {
+    try {
+      // Get the 'src' attribute from img
+      let imgSrc = img.getAttribute("src");
+
+      // Update the progress bar for depths
+      if (maxDepthValue == 0) await zeroDepthCounterUpdate();
+
+      // If src attribute is null or a base64 encoded image, skip this iteration
+      if (imgSrc === null || imgSrc.includes("base64")) return;
+
+      // Extract the image name from the src URL and sanitize it
+      let imageName = imgSrc
+        .substring(simgSrc.lastIndexOf("/") + 1)
+        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+
+      // Check if the image is a duplicate if not storage that image name
+      if (!urlImages.includes(imageName)) {
+        // Store the image into the urlImages
+        urlImages.push(imageName);
+
+        // Adjust the srcUrl to ensure it's an absolute URL
+        if (imgSrc.includes("//"))
+          imgSrc = "https:" + imgSrc.substring(imgSrc.indexOf("//"));
+        else
+          imgSrc = getAbsolutePath(imgSrc, inputUrl);
+
+        // Add the img file to the zip
+        zip.file("img/" + imageName, urlToPromise(imgSrc), { binary: true})
+      }
+      
+      // Update the image attribute
+      img.setAttribute("src", "../img/" + imageName);
+
+      // Update the HTML
+      htmlData = parsed.documentElement.innerHTML;
+    } catch(error) {
+      console.error(error);
+    }
+  });
+
+  // Update the parsed with the new htmlData
+  parsed = parsed.parseFromString(htmlData, "text/html");
+  
   return new Promise((resolve, reject) => {
     resolve(htmlData);
   });
