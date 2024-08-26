@@ -573,7 +573,7 @@ async function processLinks() {
     // ProcessHTML
     html = await processHTML(currentPage);
 
-    zip.file("html/" + getTitle(currentPage) + ".html", html);
+    zip.file(getTitle(currentPage) + ".html", html);
 
     // Reset the zero depth information
     zeroDepthCounter = 0;
@@ -791,106 +791,5 @@ async function getCSS(data, place, urlFile) {
     console.error(err);
   }
   return data;
-}
-
-/**
- * Asynchronously processes HTML data to find and modify <iframe> elements to point to local video files,
- * and downloads video files to include in a zip file.
- *
- * @param {string} html - The HTML data as a string.
- * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
- */
-async function getVideos(html, url, urlDepth) {
-  try {
-    // Initialize a new DOMParser instance
-    let dp = new DOMParser();
-    // Parse the HTML string into a DOM object
-    let parsed = dp.parseFromString(html, "text/html");
-    // Get all iframe elements within the parsed HTML
-    let testVideoElements = parsed.getElementsByTagName("iframe");
-    // Convert the HTMLCollection to an array and iterate over each iframe element
-    Array.from(testVideoElements).forEach(async (video) => {
-      // Get the 'src' attribute of the iframe element
-      let src = video.getAttribute("src");
-      // If src attribute is null, exit early from this iteration
-      if (src === null) return;
-      // Extract the video name from the src URL and sanitize it
-      let videoName = src
-        .substring(src.lastIndexOf("/") + 1)
-        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
-      // Check if the video is a duplicate and if not, add it to the list and prepare for download
-      if (!checkDuplicate(videoName, urlVideo)) {
-        urlVideo.push({ url: videoName });
-        // Adjust the src URL to ensure it's an absolute URL
-        if (src.includes("//")) {
-          src = "https:" + src.substring(src.indexOf("//"));
-        } else {
-          src = getAbsolutePath(src, url);
-        }
-        // Add the video file to the zip
-        zip.file("video/" + videoName, urlToPromise(src), { binary: true });
-      }
-      // Set the src attribute of the iframe to point to the local video file
-      let newSrcPath = urlDepth >= 1 ? "../video/" : "video/";
-      video.setAttribute("src", newSrcPath + videoName);
-    });
-    // Update the HTML string to reflect the changes made
-    html = parsed.documentElement.innerHTML;
-    return html;
-  } catch (err) {
-    // Log any errors encountered during the process
-    console.error(err);
-  }
-  // Return the (potentially unmodified) HTML string
-  return html;
-}
-
-/**
- * Asynchronously processes HTML data to find and modify <img> elements to point to local image files,
- * and downloads image files to include in a zip file.
- *
- * @param {string} html - The HTML data as a string.
- * @returns {Promise<string>} - A promise that resolves with the modified HTML data.
- */
-async function getImgs(html, url, urlDepth) {
-  try {
-    // Parse the HTML string to a DOM object
-    let dp = new DOMParser();
-    let parsed = dp.parseFromString(html, "text/html");
-    let testImageElements = parsed.getElementsByTagName("img");
-    // Iterate over each image element and process it
-    Array.from(testImageElements).forEach(async (img) => {
-      let src = img.getAttribute("src");
-      // If src attribute is null or a base64 encoded image, skip this iteration
-      if (src === null || src.includes("base64")) return;
-      // Extract the image name from the src URL and sanitize it
-      let imageName = src
-        .substring(src.lastIndexOf("/") + 1)
-        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
-      // Check if the image is a duplicate and if not, add it to the list and prepare for download
-      if (!checkDuplicate(imageName, urlImage)) {
-        urlImage.push({ url: imageName });
-        // Adjust the src URL to ensure it's an absolute URL
-        if (src.includes("//")) {
-          src = "https:" + src.substring(src.indexOf("//"));
-        } else {
-          src = getAbsolutePath(src, url);
-        }
-        // Add the image file to the zip
-        zip.file("img/" + imageName, urlToPromise(src), { binary: true });
-      }
-      // Set the src attribute of the img to point to the local image file
-      let newSrcPath = urlDepth >= 1 ? "../img/" : "img/";
-      img.setAttribute("src", newSrcPath + imageName);
-    });
-    // Update the HTML string to reflect the changes made
-    html = parsed.documentElement.innerHTML;
-    return html;
-  } catch (err) {
-    // Log any errors encountered during the process
-    console.error(err);
-  }
-  // Return the (potentially unmodified) HTML string
-  return html;
 }
 
