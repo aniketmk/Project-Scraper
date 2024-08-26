@@ -160,7 +160,7 @@ async function performLoadingProcess(delay) {
       // Checking if the current progress is at 100%
       if (
         document.getElementById("current-progress").innerText === "100%" ||
-        maxDepthValue === 0
+        maxDepthValue == 0
       ) {
         // Resetting the progress text and bar to 0%
         document.getElementById("current-progress").innerText = "0%";
@@ -235,9 +235,10 @@ async function zeroDepthCounterEstimator(inputUrl) {
  * Updates the progress bar for zero depths
  */
 async function zeroDepthCounterUpdate() {
+  // Use requestAnimationFrame to ensure the DOM updates
+  // await new Promise((resolve) => requestAnimationFrame(resolve));
+  
   if (maxDepthValue == 0) {
-    // Use requestAnimationFrame to ensure the DOM updates
-    await new Promise((resolve) => requestAnimationFrame(resolve));
 
     // Update the progress
     console.log("Progress Update");
@@ -470,7 +471,7 @@ async function processHTML(inputUrl, html = "") {
       if (scriptSrc === null) return;
 
       // Update the progress bar for zero depths
-      if (maxDepthValue === 0) await zeroDepthCounterUpdate();
+      if (maxDepthValue == 0) await zeroDepthCounterUpdate();
 
       // Convert relative URLs to absolute URLs
       if (scriptSrc.toString().search("https://") === -1)
@@ -518,7 +519,7 @@ async function processHTML(inputUrl, html = "") {
       if (src === null) return;
 
       // Update the progress bar for zero depths
-      if (maxDepthValue === 0) await zeroDepthCounterUpdate();
+      if (maxDepthValue == 0) await zeroDepthCounterUpdate();
 
       // Extract the video name from the src URL and sanitize it
       let videoName = src
@@ -567,6 +568,7 @@ async function processLinks() {
   if (maxDepthValue == 0) {
     // Get the total estimate of links to go through
     await zeroDepthCounterEstimator(currentPage);
+    await zeroDepthCounterUpdate();
 
     // ProcessHTML
     html = await processHTML(currentPage);
