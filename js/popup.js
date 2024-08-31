@@ -166,6 +166,9 @@ async function performLoadingProcess(delay) {
         document.getElementById("current-progress").innerText = "0%";
         document.getElementById("progress-bar").style.width = "0%";
 
+        document.getElementById("current-progress").style.display = "none";
+        document.getElementById("progress-bar").style.display = "none";
+
         // Resolve the promise indicating the async work is done
         resolve();
       }
@@ -180,7 +183,7 @@ async function performLoadingProcess(delay) {
  * @param {number} totalCount - The total number of items to process.
  * @returns {string} - The progress percentage as a string.
  */
-function calculateProgressPercentage(currentCount, totalCount) {
+async function calculateProgressPercentage(currentCount, totalCount) {
   if (totalCount === 0) {
     return "0%";
   }
@@ -189,7 +192,10 @@ function calculateProgressPercentage(currentCount, totalCount) {
   if (percentage > 100) {
     percentage = 100;
   }
-  return percentage.toString() + "%";
+
+  return new Promise((resolve, reject) => {
+    resolve(percentage.toString() + "%");
+  });
 }
 
 /**
@@ -243,12 +249,16 @@ async function zeroDepthCounterUpdate() {
     // Update the progress
     console.log("Progress Update");
     zeroDepthCounter++;
-    const progressPercentage = calculateProgressPercentage(
+
+    const progressPercentage = await calculateProgressPercentage(
       zeroDepthCounter,
       totalZeroDepthCounter
     );
     document.getElementById("current-progress").innerText = progressPercentage;
     document.getElementById("progress-bar").style.width = progressPercentage;
+
+    // Use requestAnimationFrame to ensure the DOM updates
+    await new Promise((resolve) => requestAnimationFrame(resolve));
   }
 
   return new Promise((resolve, reject) => {
@@ -568,7 +578,6 @@ async function processLinks() {
   if (maxDepthValue == 0) {
     // Get the total estimate of links to go through
     await zeroDepthCounterEstimator(currentPage);
-    await zeroDepthCounterUpdate();
 
     // ProcessHTML
     html = await processHTML(currentPage);
@@ -602,7 +611,7 @@ async function processLinks() {
       currentCount++;
 
       // Update the Percentage
-      const progressPercentage = calculateProgressPercentage(
+      const progressPercentage = await calculateProgressPercentage(
         currentCount,
         totalCount
       );
@@ -645,7 +654,7 @@ async function processLinks() {
           currentCount++;
 
           // Update the Percentage
-          const progressPercentage = calculateProgressPercentage(
+          const progressPercentage = await calculateProgressPercentage(
             currentCount,
             totalCount
           );
