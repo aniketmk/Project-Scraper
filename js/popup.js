@@ -801,3 +801,57 @@ async function getCSS(data, place, urlFile) {
   return data;
 }
 
+/**
+ * Opens a new popup window to run the scraping script found in window.js. This function also sets up listeners
+ * to prevent users from accidentally closing the window and to instruct them on how to reopen it if closed.
+ */
+function openWindow() {
+  // Define the parameters for the new popup window.
+  let params = `
+    scrollbars=no,
+    resizable=no,
+    status=no,
+    location=no,
+    toolbar=no,
+    menubar=no,
+    width=355,
+    height=275,
+    left=100,
+    top=100,
+    dependent=yes
+  `;
+
+  // Opens a new window and assign the WindowProxy object to popupWindow to execute the scraping code from window.js
+  let popupWindow = window.open(
+    "../html/window.html",
+    "scraper_window",
+    params
+  );
+
+  if (
+    !popupWindow ||
+    popupWindow.closed ||
+    typeof popupWindow.closed == "undefined"
+  ) {
+    // Ask user to allow pop-ups for the specific website
+    alert("Please allow pop-ups for this website in order to download it.");
+  }
+
+  // Setup event listeners once the window is loaded.
+  popupWindow.onload = function () {
+    // Adds an event listener to prevent the user from unintentionally closing the window by prompting a confirmation message
+    popupWindow.addEventListener("beforeunload", (event) => {
+      event.preventDefault();
+      event.returnValue =
+        "Are you sure? Closing the progress window will prevent the extension from working.";
+    });
+
+    // Adds an event listener to alert the user with steps to reopen the popup window if they choose to close it
+    popupWindow.addEventListener("unload", (event) => {
+      event.preventDefault();
+      alert(
+        "The progress window  was closed. Please reopen the extension to get it back."
+      );
+    });
+  };
+}
