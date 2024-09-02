@@ -53,6 +53,7 @@ const setDownloadFlag = (isDownloading) => {
 document.addEventListener("DOMContentLoaded", () => {
   setDownloadFlag(false);
   fillOptions();
+  openWindow();
 });
 
 // Event listener that triggers when the window is about to unload (close).
