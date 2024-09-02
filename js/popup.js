@@ -1,3 +1,6 @@
+// Initialize a BroadcastChannel named 'scraper_data' to facilitate message communication.
+const broadcastChannel = new BroadcastChannel("scraper_data");
+
 // Declare a variable to hold the URL of the current page.
 let currentPage;
 
@@ -18,10 +21,6 @@ const globalState = {
 let isFocusMode = false;
 let isRestrictDomain = false;
 
-// excludeImages.addEventListener("change", () => {
-//   isExcludeImages = true;
-//   fillOptions();
-// });
 focusMode.addEventListener("change", () => {
   isFocusMode = true;
   fillOptions();
