@@ -259,8 +259,6 @@ async function processHTML(inputUrl, html = "") {
       // Absolute URL href
       let absoluteUrl = p1;
 
-      console.log(absoluteUrl);
-
       // Update the progress bar for depths
       if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
