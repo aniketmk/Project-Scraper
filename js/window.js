@@ -283,14 +283,14 @@ async function processHTML(inputUrl, html = "") {
   // Note that the Process for Images has Started
   console.log("Processing Images");
 
-  // Select all of the img elements within the document
-  let images = parsed.querySelectorAll("img");
+  // Regular expression to find all img tags
+  const imgTagRegex = /<img[^>]+src="([^">]+)"/g;
 
   // Process Images
-  images.forEach( (img) => {
+  htmlData = htmlData.replace( imgTagRegex, (match, p1) => {
     try {
       // Get the 'src' attribute from img
-      let imgSrc = img.getAttribute("src");
+      let imgSrc = p1;
 
       // Update the progress bar for depths
       if (maxDepthValue === 0) zeroDepthCounterUpdate();
@@ -317,181 +317,182 @@ async function processHTML(inputUrl, html = "") {
         zip.file("img/" + imageName, urlToPromise(imgSrc), { binary: true });
       }
 
-      // Update the image attribute
-      img.setAttribute("src", "../img/" + imageName);
+      // Image Location 
+      let imageFolderLocation = maxDepthValue === 0 ? "img/" : "../img/";
 
-      // Update the HTML
-      htmlData = parsed.documentElement.outerHTML;
+      // Return the modified img tag with the new src
+      return match.replace(p1, imageFolderLocation + imageName);
       
     } catch (error) {
       console.error(error);
+      return match;
     }
   });
 
   
 
-  // Update the parsed with the new htmlData
-  parsed = parser.parseFromString(htmlData, "text/html");
+  // // Update the parsed with the new htmlData
+  // parsed = parser.parseFromString(htmlData, "text/html");
 
-  // Note that CSS is now being Processed
-  console.log("Processing CSS Files");
+  // // Note that CSS is now being Processed
+  // console.log("Processing CSS Files");
 
-  // Process CSSs
-  Array.from(parsed.getElementsByTagName("link")).forEach(
-    (stylesheet) => {
-      try {
-        // Process only Stylesheet and Preload
-        // ToDo: Check if rel is preload and a stylesheet
-        if (stylesheet.getAttribute("rel") !== "stylesheet") return;
+  // // Process CSSs
+  // Array.from(parsed.getElementsByTagName("link")).forEach(
+  //   (stylesheet) => {
+  //     try {
+  //       // Process only Stylesheet and Preload
+  //       // ToDo: Check if rel is preload and a stylesheet
+  //       if (stylesheet.getAttribute("rel") !== "stylesheet") return;
 
-        // Update the progress bar for depths
-        if (maxDepthValue == 0) zeroDepthCounterUpdate();
+  //       // Update the progress bar for depths
+  //       if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
-        // Set the relative and absolute paths
-        let relativePath = stylesheet.getAttribute("href");
-        let absoluteUrl = stylesheet.href;
+  //       // Set the relative and absolute paths
+  //       let relativePath = stylesheet.getAttribute("href");
+  //       let absoluteUrl = stylesheet.href;
 
-        // Check if the path includes https and set the correct absoluteUrl
-        if (!relativePath.includes("https://"))
-          absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+  //       // Check if the path includes https and set the correct absoluteUrl
+  //       if (!relativePath.includes("https://"))
+  //         absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
-        // Assure that the chrome-extension Urls are corrected to the absolute urls
-        if (
-          absoluteUrl.toString().includes("chrome-extension://" + extId) ||
-          absoluteUrl.toString().startsWith("chrome-extension://")
-        )
-          absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+  //       // Assure that the chrome-extension Urls are corrected to the absolute urls
+  //       if (
+  //         absoluteUrl.toString().includes("chrome-extension://" + extId) ||
+  //         absoluteUrl.toString().startsWith("chrome-extension://")
+  //       )
+  //         absoluteUrl = getAbsolutePath(relativePath, inputUrl);
 
-        // Set the file location for each CSS file
-        stylesheet.setAttribute(
-          "href",
-          "../css/" + getTitle(absoluteUrl) + ".css"
-        );
+  //       // Set the file location for each CSS file
+  //       stylesheet.setAttribute(
+  //         "href",
+  //         "../css/" + getTitle(absoluteUrl) + ".css"
+  //       );
 
-        // Store the new path in HTML document
-        htmlData = parsed.documentElement.innerHTML;
+  //       // Store the new path in HTML document
+  //       htmlData = parsed.documentElement.innerHTML;
 
-        // Check for duplicates
-        if (urlCSSs.includes(absoluteUrl)) return;
+  //       // Check for duplicates
+  //       if (urlCSSs.includes(absoluteUrl)) return;
 
-        // Add to the urlCSSs array
-        urlCSSs.push(absoluteUrl);
+  //       // Add to the urlCSSs array
+  //       urlCSSs.push(absoluteUrl);
 
-        getData(absoluteUrl).then( (data) => {
+  //       getData(absoluteUrl).then( (data) => {
           
-          // Check if the CSS has failed
-          if (data === "Failed") return;
+  //         // Check if the CSS has failed
+  //         if (data === "Failed") return;
 
-          // ToDo: Implement getCSSImage
-          // cssFileText = await getCSS(cssText, "css", absoluteUrl);
+  //         // ToDo: Implement getCSSImage
+  //         // cssFileText = await getCSS(cssText, "css", absoluteUrl);
 
-          // Store the css file in zip
-          zip.file("css/" + getTitle(absoluteUrl) + ".css", data);
-        });
+  //         // Store the css file in zip
+  //         zip.file("css/" + getTitle(absoluteUrl) + ".css", data);
+  //       });
 
-      } catch (error) {
-        console.error(error);
-      }
-    }
-  );
+  //     } catch (error) {
+  //       console.error(error);
+  //     }
+  //   }
+  // );
 
-  // Update the htmlData with new parsed data
-  parsed = parser.parseFromString(htmlData, "text/html");
+  // // Update the htmlData with new parsed data
+  // parsed = parser.parseFromString(htmlData, "text/html");
 
-  // Note that one is now Processing Javascript
-  console.log("Processing Javascript Files");
+  // // Note that one is now Processing Javascript
+  // console.log("Processing Javascript Files");
 
-  // Get all of the script elements from the parsed HTML
-  Array.from(parsed.getElementsByTagName("script")).forEach((script) => {
-    try {
-      // Get the "src" attribute vaue of the current script element
-      let scriptSrc = script.getAttribute("src");
+  // // Get all of the script elements from the parsed HTML
+  // Array.from(parsed.getElementsByTagName("script")).forEach((script) => {
+  //   try {
+  //     // Get the "src" attribute vaue of the current script element
+  //     let scriptSrc = script.getAttribute("src");
 
-      // If the "src" attribute is null skip that iteration
-      if (scriptSrc === null) return;
+  //     // If the "src" attribute is null skip that iteration
+  //     if (scriptSrc === null) return;
 
-      // Update the progress bar for zero depths
-      if (maxDepthValue == 0) zeroDepthCounterUpdate();
+  //     // Update the progress bar for zero depths
+  //     if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
-      // Convert relative URLs to absolute URLs
-      if (scriptSrc.toString().search("https://") === -1)
-        scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
+  //     // Convert relative URLs to absolute URLs
+  //     if (scriptSrc.toString().search("https://") === -1)
+  //       scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
 
-      // Get the file name of the script and the last part of its URL
-      let scriptFileName = getTitle(scriptSrc);
-      let scriptString = scriptSrc.toString();
-      let lastPart = scriptString.substring(scriptString.lastIndexOf("/") + 1);
+  //     // Get the file name of the script and the last part of its URL
+  //     let scriptFileName = getTitle(scriptSrc);
+  //     let scriptString = scriptSrc.toString();
+  //     let lastPart = scriptString.substring(scriptString.lastIndexOf("/") + 1);
 
-      // Update the "src" attribute in the HTML based on the URL depth
-      script.setAttribute("src", "../js/" + scriptFileName + ".js");
+  //     // Update the "src" attribute in the HTML based on the URL depth
+  //     script.setAttribute("src", "../js/" + scriptFileName + ".js");
 
-      // Update the HTML string with the modified script element
-      htmlData = parsed.documentElement.innerHTML;
+  //     // Update the HTML string with the modified script element
+  //     htmlData = parsed.documentElement.innerHTML;
 
-      // Check for duplicate script URLs and skip them
-      if (urlJSs.includes(lastPart)) return;
+  //     // Check for duplicate script URLs and skip them
+  //     if (urlJSs.includes(lastPart)) return;
 
-      // Add the script URL to the tracking array
-      urlJSs.push(lastPart);
+  //     // Add the script URL to the tracking array
+  //     urlJSs.push(lastPart);
 
-      // Store the data in script text
-      getData(scriptSrc).then((data) => {
-        if (data === "Failed") return;
+  //     // Store the data in script text
+  //     getData(scriptSrc).then((data) => {
+  //       if (data === "Failed") return;
 
-        // Add the script content to the zip file
-        zip.file("js/" + scriptFileName + ".js", data);
-      });
+  //       // Add the script content to the zip file
+  //       zip.file("js/" + scriptFileName + ".js", data);
+  //     });
       
       
-    } catch (err) {
-      // Log errors that occur during the fetching and zipping process
-      console.error(err);
-    }
-  });
+  //   } catch (err) {
+  //     // Log errors that occur during the fetching and zipping process
+  //     console.error(err);
+  //   }
+  // });
 
-  parsed = parser.parseFromString(htmlData, "text/html");
+  // parsed = parser.parseFromString(htmlData, "text/html");
 
-  // Note the Processing Videos has started
-  console.log("Processing Video Files");
+  // // Note the Processing Videos has started
+  // console.log("Processing Video Files");
 
-  // Convert the HTMLCollection to an array and iterate over each iframe elment
-  Array.from(parsed.getElementsByTagName("iframe")).forEach( (video) => {
-    try {
-      // Get the 'src' attribute of the iframe element
-      let src = video.getAttribute("src");
+  // // Convert the HTMLCollection to an array and iterate over each iframe elment
+  // Array.from(parsed.getElementsByTagName("iframe")).forEach( (video) => {
+  //   try {
+  //     // Get the 'src' attribute of the iframe element
+  //     let src = video.getAttribute("src");
 
-      // If src attribute is null, exit early from this iteration
-      if (src === null) return;
+  //     // If src attribute is null, exit early from this iteration
+  //     if (src === null) return;
 
-      // Update the progress bar for zero depths
-      if (maxDepthValue == 0) zeroDepthCounterUpdate();
-      // Extract the video name from the src URL and sanitize it
-      let videoName = src
-        .substring(src.lastIndexOf("/") + 1)
-        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+  //     // Update the progress bar for zero depths
+  //     if (maxDepthValue == 0) zeroDepthCounterUpdate();
+  //     // Extract the video name from the src URL and sanitize it
+  //     let videoName = src
+  //       .substring(src.lastIndexOf("/") + 1)
+  //       .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
 
-      // Check if the video is a duplicate and if not, add it to the list and prepare for download
-      if (!urlVideos.includes(videoName)) {
-        urlVideos.push(videoName);
+  //     // Check if the video is a duplicate and if not, add it to the list and prepare for download
+  //     if (!urlVideos.includes(videoName)) {
+  //       urlVideos.push(videoName);
 
-        // Adjust the src URL to ensure it's an absolute URL
-        if (src.includes("//")) {
-          src = "https:" + src.substring(src.indexOf("//"));
-        } else {
-          src = getAbsolutePath(src, url);
-        }
-        // Add the video file to the zip
-        zip.file("video/" + videoName, urlToPromise(src), { binary: true });
-      }
-      // Update the HTML string to reflect the changes made
-      htmlData = parsed.documentElement.innerHTML;
+  //       // Adjust the src URL to ensure it's an absolute URL
+  //       if (src.includes("//")) {
+  //         src = "https:" + src.substring(src.indexOf("//"));
+  //       } else {
+  //         src = getAbsolutePath(src, url);
+  //       }
+  //       // Add the video file to the zip
+  //       zip.file("video/" + videoName, urlToPromise(src), { binary: true });
+  //     }
+  //     // Update the HTML string to reflect the changes made
+  //     htmlData = parsed.documentElement.innerHTML;
 
-      // Set the src attribute of the iframe to point to the local video file
-      video.setAttribute("src", "../video/" + videoName);
-    } catch (error) {
-      console.error(error);
-    }
-  });
+  //     // Set the src attribute of the iframe to point to the local video file
+  //     video.setAttribute("src", "../video/" + videoName);
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // });
 
   return new Promise((resolve, reject) => {
     resolve(htmlData);
