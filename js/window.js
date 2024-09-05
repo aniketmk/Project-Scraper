@@ -116,7 +116,7 @@ function performLoadingProcess(delay) {
  * @param {number} totalCount - The total number of items to process.
  * @returns {string} - The progress percentage as a string.
  */
-async function calculateProgressPercentage(currentCount, totalCount) {
+function calculateProgressPercentage(currentCount, totalCount) {
   if (totalCount === 0) {
     return "0%";
   }
@@ -126,9 +126,7 @@ async function calculateProgressPercentage(currentCount, totalCount) {
     percentage = 100;
   }
 
-  return new Promise((resolve, reject) => {
-    resolve(percentage.toString() + "%");
-  });
+  return percentage.toString() + "%";
 }
 
 /**
@@ -173,7 +171,7 @@ async function zeroDepthCounterEstimator(inputUrl) {
 /**
  * Updates the progress bar for zero depths
  */
-async function zeroDepthCounterUpdate() {
+function zeroDepthCounterUpdate() {
   // Use requestAnimationFrame to ensure the DOM updates
   // await new Promise((resolve) => requestAnimationFrame(resolve));
 
@@ -182,20 +180,13 @@ async function zeroDepthCounterUpdate() {
     console.log("Progress Update");
     zeroDepthCounter++;
 
-    const progressPercentage = await calculateProgressPercentage(
+    const progressPercentage = calculateProgressPercentage(
       zeroDepthCounter,
       totalZeroDepthCounter
     );
     document.getElementById("current-progress").innerText = progressPercentage;
     document.getElementById("progress-bar").style.width = progressPercentage;
-
-    // Use requestAnimationFrame to ensure the DOM updates
-    await new Promise((resolve) => requestAnimationFrame(resolve));
   }
-
-  return new Promise((resolve, reject) => {
-    resolve();
-  });
 }
 
 /**
@@ -260,13 +251,13 @@ async function processHTML(inputUrl, html = "") {
   console.log("Processing PDFs");
 
   // Process PDFs
-  Array.from(parsed.getElementsByTagName("a")).forEach(async (anchor) => {
+  Array.from(parsed.getElementsByTagName("a")).forEach( (anchor) => {
     try {
       // Absolute URL href
       let absoluteUrl = anchor.href;
 
       // Update the progress bar for depths
-      if (maxDepthValue == 0) await zeroDepthCounterUpdate();
+      if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
       // Exclude an non-PDFs
       if (!absoluteUrl.includes(".pdf")) return;
@@ -292,14 +283,17 @@ async function processHTML(inputUrl, html = "") {
   // Note that the Process for Images has Started
   console.log("Processing Images");
 
+  // Select all of the img elements within the document
+  let images = parsed.querySelectorAll("img");
+
   // Process Images
-  Array.from(parsed.getElementsByTagName("img")).forEach(async (img) => {
+  images.forEach( (img) => {
     try {
       // Get the 'src' attribute from img
       let imgSrc = img.getAttribute("src");
 
       // Update the progress bar for depths
-      if (maxDepthValue === 0) await zeroDepthCounterUpdate();
+      if (maxDepthValue === 0) zeroDepthCounterUpdate();
 
       // If src attribute is null or a base64 encoded image, skip this iteration
       if (imgSrc === null || imgSrc.includes("base64")) return;
@@ -327,11 +321,14 @@ async function processHTML(inputUrl, html = "") {
       img.setAttribute("src", "../img/" + imageName);
 
       // Update the HTML
-      htmlData = parsed.documentElement.innerHTML;
+      htmlData = parsed.documentElement.outerHTML;
+      
     } catch (error) {
       console.error(error);
     }
   });
+
+  
 
   // Update the parsed with the new htmlData
   parsed = parser.parseFromString(htmlData, "text/html");
@@ -341,14 +338,14 @@ async function processHTML(inputUrl, html = "") {
 
   // Process CSSs
   Array.from(parsed.getElementsByTagName("link")).forEach(
-    async (stylesheet) => {
+    (stylesheet) => {
       try {
         // Process only Stylesheet and Preload
         // ToDo: Check if rel is preload and a stylesheet
         if (stylesheet.getAttribute("rel") !== "stylesheet") return;
 
         // Update the progress bar for depths
-        if (maxDepthValue == 0) await zeroDepthCounterUpdate();
+        if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
         // Set the relative and absolute paths
         let relativePath = stylesheet.getAttribute("href");
@@ -380,17 +377,18 @@ async function processHTML(inputUrl, html = "") {
         // Add to the urlCSSs array
         urlCSSs.push(absoluteUrl);
 
-        // Get the page data for CSSText
-        let cssText = await getData(absoluteUrl);
+        getData(absoluteUrl).then( (data) => {
+          
+          // Check if the CSS has failed
+          if (data === "Failed") return;
 
-        // Check if the CSS has failed
-        if (cssText === "Failed") return;
+          // ToDo: Implement getCSSImage
+          // cssFileText = await getCSS(cssText, "css", absoluteUrl);
 
-        // ToDo: Implement getCSSImage
-        // cssFileText = await getCSS(cssText, "css", absoluteUrl);
+          // Store the css file in zip
+          zip.file("css/" + getTitle(absoluteUrl) + ".css", data);
+        });
 
-        // Store the css file in zip
-        zip.file("css/" + getTitle(absoluteUrl) + ".css", cssText);
       } catch (error) {
         console.error(error);
       }
@@ -404,7 +402,7 @@ async function processHTML(inputUrl, html = "") {
   console.log("Processing Javascript Files");
 
   // Get all of the script elements from the parsed HTML
-  Array.from(parsed.getElementsByTagName("script")).forEach(async (script) => {
+  Array.from(parsed.getElementsByTagName("script")).forEach((script) => {
     try {
       // Get the "src" attribute vaue of the current script element
       let scriptSrc = script.getAttribute("src");
@@ -413,7 +411,7 @@ async function processHTML(inputUrl, html = "") {
       if (scriptSrc === null) return;
 
       // Update the progress bar for zero depths
-      if (maxDepthValue == 0) await zeroDepthCounterUpdate();
+      if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
       // Convert relative URLs to absolute URLs
       if (scriptSrc.toString().search("https://") === -1)
@@ -435,11 +433,16 @@ async function processHTML(inputUrl, html = "") {
 
       // Add the script URL to the tracking array
       urlJSs.push(lastPart);
-      // Asynchronously fetch the script content
-      let scriptText = await getData(scriptSrc);
-      if (scriptText === "Failed") return;
-      // Add the script content to the zip file
-      zip.file("js/" + scriptFileName + ".js", scriptText);
+
+      // Store the data in script text
+      getData(scriptSrc).then((data) => {
+        if (data === "Failed") return;
+
+        // Add the script content to the zip file
+        zip.file("js/" + scriptFileName + ".js", data);
+      });
+      
+      
     } catch (err) {
       // Log errors that occur during the fetching and zipping process
       console.error(err);
@@ -452,7 +455,7 @@ async function processHTML(inputUrl, html = "") {
   console.log("Processing Video Files");
 
   // Convert the HTMLCollection to an array and iterate over each iframe elment
-  Array.from(parsed.getElementsByTagName("iframe")).forEach(async (video) => {
+  Array.from(parsed.getElementsByTagName("iframe")).forEach( (video) => {
     try {
       // Get the 'src' attribute of the iframe element
       let src = video.getAttribute("src");
@@ -461,7 +464,7 @@ async function processHTML(inputUrl, html = "") {
       if (src === null) return;
 
       // Update the progress bar for zero depths
-      if (maxDepthValue == 0) await zeroDepthCounterUpdate();
+      if (maxDepthValue == 0) zeroDepthCounterUpdate();
       // Extract the video name from the src URL and sanitize it
       let videoName = src
         .substring(src.lastIndexOf("/") + 1)
@@ -542,7 +545,7 @@ async function processLinks() {
       currentCount++;
 
       // Update the Percentage
-      const progressPercentage = await calculateProgressPercentage(
+      const progressPercentage = calculateProgressPercentage(
         currentCount,
         totalCount
       );
@@ -585,7 +588,7 @@ async function processLinks() {
           currentCount++;
 
           // Update the Percentage
-          const progressPercentage = await calculateProgressPercentage(
+          const progressPercentage = calculateProgressPercentage(
             currentCount,
             totalCount
           );

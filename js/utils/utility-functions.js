@@ -10,7 +10,9 @@ let getData = async (url) => {
   } catch (error) {
     console.error("Error:", error);
   }
-  return result;
+  return new Promise((resolve, reject) => {
+    resolve(result);
+  });
 };
 
 /**
