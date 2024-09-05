@@ -250,11 +250,16 @@ async function processHTML(inputUrl, html = "") {
   // Note that one is processing PDFs has started
   console.log("Processing PDFs");
 
+  // Regular Expression for Processing PDfs
+  const pdfAnchorsRegex = /<a[^>]+href="([^">]+)"/g;
+
   // Process PDFs
-  Array.from(parsed.getElementsByTagName("a")).forEach( (anchor) => {
+  htmlData = htmlData.replace( pdfAnchorsRegex, (match, p1) => {
     try {
       // Absolute URL href
-      let absoluteUrl = anchor.href;
+      let absoluteUrl = p1;
+
+      console.log(absoluteUrl);
 
       // Update the progress bar for depths
       if (maxDepthValue == 0) zeroDepthCounterUpdate();
@@ -267,18 +272,17 @@ async function processHTML(inputUrl, html = "") {
         binary: true,
       });
 
-      // Set the href with the new local file location
-      anchor.setAttribute("href", "../pdf/" + getTitle(absoluteUrl));
+      let pdfFolderLocation = maxDepthValue === 0 ? "pdf/" : "../pdf/";
 
-      // Store the new htmlData
-      htmlData = parsed.documentElement.innerHTML;
+      // Set the href with the new local file location
+      return match.replace(p1, pdfFolderLocation + getTitle(absoluteUrl));
+
+      // Store the PDF
     } catch (error) {
       console.error(error);
+      return match
     }
   });
-
-  // Update the parsed with the new htmlData
-  parsed = parser.parseFromString(htmlData, "text/html");
 
   // Note that the Process for Images has Started
   console.log("Processing Images");
