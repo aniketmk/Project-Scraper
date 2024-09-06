@@ -391,12 +391,12 @@ async function processHTML(inputUrl, html = "") {
       if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
       // Handle protocol-relative URLs (starting with "//")
-      // if (scriptSrc.startsWith("//")) {
-      //   scriptSrc = "https:" + scriptSrc;
-      // }
+      if (scriptSrc.startsWith("//")) {
+        scriptSrc = "https:" + scriptSrc;
+      }
 
       // If the src is relative, resolve it to an absolute URL
-      if (!scriptSrc.startsWith("https://")) {
+      if (!scriptSrc.startsWith("https://") && !scriptSrc.startsWith("http://")) {
         scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
       } 
 
