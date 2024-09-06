@@ -263,7 +263,7 @@ async function processHTML(inputUrl, html = "") {
       if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
       // Exclude an non-PDFs
-      if (!absoluteUrl.includes(".pdf")) return;
+      if (!absoluteUrl.includes(".pdf")) return match;
 
       // Add the pdf to the zip folder
       zip.file("pdf/" + getTitle(absoluteUrl), urlToPromise(absoluteUrl), {
@@ -375,59 +375,54 @@ async function processHTML(inputUrl, html = "") {
     }
   );
 
-  // // Update the htmlData with new parsed data
-  // parsed = parser.parseFromString(htmlData, "text/html");
+  // Note that one is now Processing Javascript
+  console.log("Processing Javascript Files");
 
-  // // Note that one is now Processing Javascript
-  // console.log("Processing Javascript Files");
+  // Regular expression to match <script> tags with a src attribute
+  const scriptTagRegex = /<script[^>]+src=["']([^"']+)["']/g;
 
-  // // Get all of the script elements from the parsed HTML
-  // Array.from(parsed.getElementsByTagName("script")).forEach((script) => {
-  //   try {
-  //     // Get the "src" attribute vaue of the current script element
-  //     let scriptSrc = script.getAttribute("src");
+  // Get all of the script elements from the parsed HTML
+  htmlData = htmlData.replace(scriptTagRegex, (match, p1) => {
+    try {
+      // Get the "src" attribute vaue of the current script element
+      let scriptSrc = p1;
 
-  //     // If the "src" attribute is null skip that iteration
-  //     if (scriptSrc === null) return;
+      // Update the progress bar for zero depths
+      if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
-  //     // Update the progress bar for zero depths
-  //     if (maxDepthValue == 0) zeroDepthCounterUpdate();
+      // Handle protocol-relative URLs (starting with "//")
+      // if (scriptSrc.startsWith("//")) {
+      //   scriptSrc = "https:" + scriptSrc;
+      // }
 
-  //     // Convert relative URLs to absolute URLs
-  //     if (scriptSrc.toString().search("https://") === -1)
-  //       scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
+      // If the src is relative, resolve it to an absolute URL
+      if (!scriptSrc.startsWith("https://")) {
+        scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
+      } 
 
-  //     // Get the file name of the script and the last part of its URL
-  //     let scriptFileName = getTitle(scriptSrc);
-  //     let scriptString = scriptSrc.toString();
-  //     let lastPart = scriptString.substring(scriptString.lastIndexOf("/") + 1);
+      // Check for duplicate script URLs and skip them
+      if (urlJSs.includes(scriptSrc)) return match;
 
-  //     // Update the "src" attribute in the HTML based on the URL depth
-  //     script.setAttribute("src", "../js/" + scriptFileName + ".js");
+      // Add the script URL to the tracking array
+      urlJSs.push(scriptSrc);
 
-  //     // Update the HTML string with the modified script element
-  //     htmlData = parsed.documentElement.innerHTML;
+      // Store the data in script text
+      getData(scriptSrc).then((data) => {
+        if (data !== "Failed")
+          zip.file("js/" + getTitle(scriptSrc) + ".js", data);
+      });
 
-  //     // Check for duplicate script URLs and skip them
-  //     if (urlJSs.includes(lastPart)) return;
+      // Set the CSS folder location for different depths
+      let jsFolderLocation = maxDepthValue === 0 ? "js/" : "../js/";
 
-  //     // Add the script URL to the tracking array
-  //     urlJSs.push(lastPart);
-
-  //     // Store the data in script text
-  //     getData(scriptSrc).then((data) => {
-  //       if (data === "Failed") return;
-
-  //       // Add the script content to the zip file
-  //       zip.file("js/" + scriptFileName + ".js", data);
-  //     });
-      
-      
-  //   } catch (err) {
-  //     // Log errors that occur during the fetching and zipping process
-  //     console.error(err);
-  //   }
-  // });
+      // Return the updated script tag with the local path for the script
+      return match.replace(p1, jsFolderLocation + getTitle(scriptSrc) + ".js");
+    } catch (err) {
+      // Log errors that occur during the fetching and zipping process
+      console.error(err);
+      return match;
+    }
+  });
 
   // parsed = parser.parseFromString(htmlData, "text/html");
 
