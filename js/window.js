@@ -331,72 +331,49 @@ async function processHTML(inputUrl, html = "") {
     }
   });
 
-  
+  // Note that CSS is now being Processed
+  console.log("Processing CSS Files");
 
-  // // Update the parsed with the new htmlData
-  // parsed = parser.parseFromString(htmlData, "text/html");
+  // Regular expression to match <link> tags with rel="stylesheet"
+  const cssLinkRegex = /<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["']/g;
 
-  // // Note that CSS is now being Processed
-  // console.log("Processing CSS Files");
+  // Process CSSs
+  htmlData = htmlData.replace(cssLinkRegex, (match, p1) => {
+      try {
+        let cssHref = p1;
 
-  // // Process CSSs
-  // Array.from(parsed.getElementsByTagName("link")).forEach(
-  //   (stylesheet) => {
-  //     try {
-  //       // Process only Stylesheet and Preload
-  //       // ToDo: Check if rel is preload and a stylesheet
-  //       if (stylesheet.getAttribute("rel") !== "stylesheet") return;
+        // Update the progress bar for depths
+        if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
-  //       // Update the progress bar for depths
-  //       if (maxDepthValue == 0) zeroDepthCounterUpdate();
+        // Check if the path includes https and set the correct absoluteUrl
+        if (!cssHref.includes("https://") || 
+          cssHref.includes("chrome-extension://" + extId) ||
+          cssHref.toString().startsWith("chrome-extension://"))
+            cssHref = getAbsolutePath(cssHref, inputUrl);
 
-  //       // Set the relative and absolute paths
-  //       let relativePath = stylesheet.getAttribute("href");
-  //       let absoluteUrl = stylesheet.href;
+        // Check for duplicates
+        if (urlCSSs.includes(cssHref)) return match;
 
-  //       // Check if the path includes https and set the correct absoluteUrl
-  //       if (!relativePath.includes("https://"))
-  //         absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+        // Add to the urlCSSs array
+        urlCSSs.push(cssHref);
 
-  //       // Assure that the chrome-extension Urls are corrected to the absolute urls
-  //       if (
-  //         absoluteUrl.toString().includes("chrome-extension://" + extId) ||
-  //         absoluteUrl.toString().startsWith("chrome-extension://")
-  //       )
-  //         absoluteUrl = getAbsolutePath(relativePath, inputUrl);
+        // Fetch the CSs data and add it to the zip
+        getData(cssHref).then( (data) => {
+          if (data !== "Failed") 
+            zip.file("css/" + getTitle(cssHref) + ".css", data);
+        });
 
-  //       // Set the file location for each CSS file
-  //       stylesheet.setAttribute(
-  //         "href",
-  //         "../css/" + getTitle(absoluteUrl) + ".css"
-  //       );
+        // Set the CSS folder location for different depths
+        let cssFolderLocation = maxDepthValue === 0 ? "css/" : "../css/";
 
-  //       // Store the new path in HTML document
-  //       htmlData = parsed.documentElement.innerHTML;
+        return match.replace(p1, cssFolderLocation + getTitle(cssHref) + ".css");
 
-  //       // Check for duplicates
-  //       if (urlCSSs.includes(absoluteUrl)) return;
-
-  //       // Add to the urlCSSs array
-  //       urlCSSs.push(absoluteUrl);
-
-  //       getData(absoluteUrl).then( (data) => {
-          
-  //         // Check if the CSS has failed
-  //         if (data === "Failed") return;
-
-  //         // ToDo: Implement getCSSImage
-  //         // cssFileText = await getCSS(cssText, "css", absoluteUrl);
-
-  //         // Store the css file in zip
-  //         zip.file("css/" + getTitle(absoluteUrl) + ".css", data);
-  //       });
-
-  //     } catch (error) {
-  //       console.error(error);
-  //     }
-  //   }
-  // );
+      } catch (error) {
+        console.error(error);
+        return match;
+      }
+    }
+  );
 
   // // Update the htmlData with new parsed data
   // parsed = parser.parseFromString(htmlData, "text/html");
