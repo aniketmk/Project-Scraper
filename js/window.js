@@ -436,10 +436,6 @@ async function processHTML(inputUrl, html = "") {
   if (html == "") htmlData = await getData(inputUrl);
   else htmlData = html;
 
-  // Parse the html string into a Dom Object
-  let parser = new DOMParser();
-  let parsed = parser.parseFromString(htmlData, "text/html");
-
   // Note that the Process for Images has Started
   console.log("Processing Images");
 
