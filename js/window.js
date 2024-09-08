@@ -378,22 +378,15 @@ async function processCSSImages(cssData, cssUrl) {
   // Return the updated CSS
   return updatedCSS;
 }
-
 /**
+ * 
+ * Processes to handle PDF files
  *
- * @param {*} inputUrl - The URL to be processed
- * @param {*} html - The HTML to be processed
- * @returns
+ * @param {string} htmlData - The HTML content in which to find PDFs
+ * @param {string} inputUrl - The base URL of the HTML file to resolve relative paths.
+ * @returns {Promise<string>} - The modified HTML with updated PDF links
  */
-async function processHTML(inputUrl, html = "") {
-  // Get the HTML data for each page
-  if (html == "") htmlData = await getData(inputUrl);
-  else htmlData = html;
-
-  // Parse the html string into a Dom Object
-  let parser = new DOMParser();
-  let parsed = parser.parseFromString(htmlData, "text/html");
-
+async function processPdfs(htmlData, inputUrl) {
   // Note that one is processing PDFs has started
   console.log("Processing PDFs");
 
@@ -428,6 +421,24 @@ async function processHTML(inputUrl, html = "") {
       return match
     }
   });
+
+  return htmlData;
+}
+
+/**
+ *
+ * @param {*} inputUrl - The URL to be processed
+ * @param {*} html - The HTML to be processed
+ * @returns
+ */
+async function processHTML(inputUrl, html = "") {
+  // Get the HTML data for each page
+  if (html == "") htmlData = await getData(inputUrl);
+  else htmlData = html;
+
+  // Parse the html string into a Dom Object
+  let parser = new DOMParser();
+  let parsed = parser.parseFromString(htmlData, "text/html");
 
   // Note that the Process for Images has Started
   console.log("Processing Images");
@@ -478,6 +489,7 @@ async function processHTML(inputUrl, html = "") {
     }
   });
 
+  htmlData = await processPdfs(htmlData, inputUrl);
   htmlData = await processCSSAndImages(htmlData, inputUrl);
 
   // Note that one is now Processing Javascript
