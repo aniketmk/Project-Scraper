@@ -231,6 +231,153 @@ async function startScrapingProcess() {
   setDownloadFlag(false);
   zip = new JSZip();
 }
+/**
+ * Processes both external CSS files and inline styles within the HTML to 
+ * handle images and replace them with locally stored images.
+ *
+ * @param {string} htmlData - The HTML content in which to find CSS and inline styles.
+ * @param {string} inputUrl - The base URL of the HTML file to resolve relative paths.
+ * @returns {Promise<string>} - The modified HTML with updated CSS links and inline styles.
+ */
+async function processCSSAndImages(htmlData, inputUrl) {
+  console.log("Processing CSS Files and Inline Styles");
+
+  // Regular expression to match <link> tags with rel="stylesheet"
+  const cssLinkRegex = /<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["']/g;
+
+  // Process external CSS files (linked via <link> tags)
+  htmlData = htmlData.replace(cssLinkRegex, (match, p1) => {
+      try {
+          let cssHref = p1;
+
+          // Resolve the CSS URL to absolute if needed
+          if (!cssHref.startsWith("https://") && !cssHref.startsWith("http://")) {
+              cssHref = getAbsolutePath(cssHref, inputUrl);
+          }
+
+          console.log(`Processing CSS file: ${cssHref}`);
+
+          // Skip if the CSS file has already been processed
+          if (urlCSSs.includes(cssHref)) return match;
+
+          // Add the CSS URL to the processed list
+          urlCSSs.push(cssHref);
+
+          // Fetch the CSS file and process images within it
+          getData(cssHref).then(async (cssData) => {
+              if (cssData !== "Failed") {
+                  // Process the CSS to find and replace image URLs
+                  let processedCSS = await processCSSImages(cssData, cssHref);
+
+                  // Add the processed CSS to the zip
+                  zip.file("css/" + getTitle(cssHref) + ".css", processedCSS);
+                  console.log(`CSS file added to zip: ${cssHref}`);
+              } else {
+                  console.error(`Failed to fetch CSS file: ${cssHref}`);
+              }
+          });
+
+          // Set the folder location based on depth
+          let cssFolderLocation = maxDepthValue === 0 ? "css/" : "../css/";
+
+          // Update the href in the link tag to point to the local CSS file
+          return match.replace(p1, cssFolderLocation + getTitle(cssHref) + ".css");
+
+      } catch (error) {
+          console.error(error);
+          return match;
+      }
+  });
+
+  // Handle inline <style> tags
+  console.log("Processing Inline Style Tags");
+
+  // Regular expression to match the content of <style> tags
+  const styleTagRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+
+  // Process inline <style> tags
+  htmlData = htmlData.replace(styleTagRegex, async (match, styleContent) => {
+      try {
+          // Process the inline CSS to find and replace image URLs
+          let processedStyleContent = await processCSSImages(styleContent, inputUrl);
+
+          // Return the modified <style> tag with updated image URLs
+          return match.replace(styleContent, processedStyleContent);
+
+      } catch (error) {
+          console.error(error);
+          return match;  // Return the original match in case of error
+      }
+  });
+
+  return htmlData;
+}
+
+/**
+* Processes CSS content (from external CSS files or inline styles) to find image URLs, download the images,
+* and replace them with locally stored paths. Handles errors like 404 and ensures image processing continues.
+*
+* @param {string} cssData - The raw CSS content to be processed.
+* @param {string} cssUrl - The URL of the CSS file (or base URL for inline styles) to resolve relative image paths.
+* @returns {Promise<string>} - The processed CSS with updated image URLs pointing to locally stored images.
+*/
+async function processCSSImages(cssData, cssUrl) {
+  // Regular expression to match `url()` in CSS (used for images)
+  const imageUrlRegex = /url\(["']?([^"')]+)["']?\)/g;
+
+  // Array to store promises for each image download
+  let downloadPromises = [];
+
+  // Perform a replace, but collect promises for async image fetching
+  const updatedCSS = cssData.replace(imageUrlRegex, (match, imageUrl) => {
+      let resolvedUrl = imageUrl;  // Start with the original URL
+
+      // Handle different types of URLs gracefully using if-else conditions
+      if (imageUrl.startsWith("//")) {
+          // Protocol-relative URL (e.g., //example.com/image.jpg)
+          resolvedUrl = "https:" + imageUrl;
+      } else if (imageUrl.startsWith("https://") || imageUrl.startsWith("http://")) {
+          // Absolute URL (e.g., https://example.com/image.jpg)
+          resolvedUrl = imageUrl;  // No change needed for absolute URLs
+      } else {
+          // Relative URL (e.g., /images/picture.jpg)
+          resolvedUrl = getAbsolutePath(imageUrl, cssUrl).href;  // Resolve relative to the CSS file's URL
+      }
+
+      // Extract the image file name from the resolved URL
+      let imageName = resolvedUrl.substring(resolvedUrl.lastIndexOf("/") + 1).replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+
+      // Check if the image has already been processed
+      if (!urlImages.includes(imageName)) {
+          urlImages.push(imageName);
+
+          // Push a new promise to handle the asynchronous image downloading
+          const promise = urlToPromise(resolvedUrl)
+              .then((imageData) => {
+                  // Add the image to the zip asynchronously
+                  zip.file("img/" + imageName, imageData, { binary: true });
+                  console.log(`Image downloaded and added to zip: ${resolvedUrl}`);
+              })
+              .catch((err) => {
+                  // Handle any errors during the download (e.g., 404)
+                  console.error(`Error fetching image from: ${resolvedUrl}`);
+                  return `/* 404 Error: Image not found: ${resolvedUrl} */ url("${resolvedUrl}")`;
+              });
+
+          // Add the promise to the array
+          downloadPromises.push(promise);
+      }
+
+      // Replace the original URL in the CSS with the local path
+      return `url("../img/${imageName}")`;
+  });
+
+  // Wait for all download promises to complete
+  await Promise.all(downloadPromises);
+
+  // Return the updated CSS
+  return updatedCSS;
+}
 
 /**
  *
@@ -331,49 +478,7 @@ async function processHTML(inputUrl, html = "") {
     }
   });
 
-  // Note that CSS is now being Processed
-  console.log("Processing CSS Files");
-
-  // Regular expression to match <link> tags with rel="stylesheet"
-  const cssLinkRegex = /<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["']/g;
-
-  // Process CSSs
-  htmlData = htmlData.replace(cssLinkRegex, (match, p1) => {
-      try {
-        let cssHref = p1;
-
-        // Update the progress bar for depths
-        if (maxDepthValue == 0) zeroDepthCounterUpdate();
-
-        // Check if the path includes https and set the correct absoluteUrl
-        if (!cssHref.includes("https://") || 
-          cssHref.includes("chrome-extension://" + extId) ||
-          cssHref.toString().startsWith("chrome-extension://"))
-            cssHref = getAbsolutePath(cssHref, inputUrl);
-
-        // Check for duplicates
-        if (urlCSSs.includes(cssHref)) return match;
-
-        // Add to the urlCSSs array
-        urlCSSs.push(cssHref);
-
-        // Fetch the CSs data and add it to the zip
-        getData(cssHref).then( (data) => {
-          if (data !== "Failed") 
-            zip.file("css/" + getTitle(cssHref) + ".css", data);
-        });
-
-        // Set the CSS folder location for different depths
-        let cssFolderLocation = maxDepthValue === 0 ? "css/" : "../css/";
-
-        return match.replace(p1, cssFolderLocation + getTitle(cssHref) + ".css");
-
-      } catch (error) {
-        console.error(error);
-        return match;
-      }
-    }
-  );
+  htmlData = await processCSSAndImages(htmlData, inputUrl);
 
   // Note that one is now Processing Javascript
   console.log("Processing Javascript Files");
