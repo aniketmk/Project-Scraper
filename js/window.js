@@ -252,7 +252,7 @@ async function processCSSAndImages(htmlData, inputUrl) {
 
           // Resolve the CSS URL to absolute if needed
           if (!cssHref.startsWith("https://") && !cssHref.startsWith("http://")) {
-              cssHref = getAbsolutePath(cssHref, inputUrl);
+              cssHref = getAbsolutePath(cssHref, inputUrl).href;
           }
 
           console.log(`Processing CSS file: ${cssHref}`);
@@ -279,6 +279,8 @@ async function processCSSAndImages(htmlData, inputUrl) {
 
           // Set the folder location based on depth
           let cssFolderLocation = maxDepthValue === 0 ? "css/" : "../css/";
+
+          console.log("CSS Folder Location: ", cssFolderLocation + getTitle(cssHref));
 
           // Update the href in the link tag to point to the local CSS file
           return match.replace(p1, cssFolderLocation + getTitle(cssHref) + ".css");
@@ -329,7 +331,7 @@ async function processCSSImages(cssData, cssUrl) {
   let downloadPromises = [];
 
   // Perform a replace, but collect promises for async image fetching
-  const updatedCSS = cssData.replace(imageUrlRegex, (match, imageUrl) => {
+  const updatedCSS = cssData.replace(imageUrlRegex, async (match, imageUrl) => {
       let resolvedUrl = imageUrl;  // Start with the original URL
 
       // Handle different types of URLs gracefully using if-else conditions
@@ -399,6 +401,8 @@ async function processPdfs(htmlData, inputUrl) {
       // Absolute URL href
       let absoluteUrl = p1;
 
+      console.log("PDF URL: ", absoluteUrl);
+
       // Update the progress bar for depths
       if (maxDepthValue == 0) zeroDepthCounterUpdate();
 
@@ -406,7 +410,7 @@ async function processPdfs(htmlData, inputUrl) {
       if (!absoluteUrl.includes(".pdf")) return match;
 
       // Add the pdf to the zip folder
-      zip.file("pdf/" + getTitle(absoluteUrl), urlToPromise(absoluteUrl), {
+      zip.file("pdf/" + getTitle(absoluteUrl), urlToPromise(absoluteUrl).href, {
         binary: true,
       });
 
@@ -440,7 +444,7 @@ async function processImages(htmlData, inputUrl) {
     const imgTagRegex = /<img[^>]+src="([^">]+)"/g;
   
     // Process Images
-    htmlData = htmlData.replace( imgTagRegex, (match, p1) => {
+    htmlData = htmlData.replace( imgTagRegex, async (match, p1) => {
       try {
         // Get the 'src' attribute from img
         let imgSrc = p1;
@@ -481,7 +485,7 @@ async function processImages(htmlData, inputUrl) {
         return match;
       }
     });
-    
+
     return htmlData;
 }
 
@@ -527,12 +531,14 @@ async function processJss(htmlData, inputUrl) {
       // Add the script URL to the tracking array
       urlJSs.push(scriptSrc);
 
-      // Store the data in script text
+
       getData(scriptSrc).then((data) => {
         if (data !== "Failed") {
           zip.file("js/" + getTitle(scriptSrc) + ".js", data);
-          console.log(`Javscript file added: ${getTitle(scriptSrc)}.js`);
+          console.log(`Javascript file added: ${getTitle(scriptSrc)}.js`);
         }
+      }).catch((err) => {
+        console.error(err);
       });
 
       // Set the CSS folder location for different depths
@@ -562,9 +568,9 @@ async function processHTML(inputUrl, html = "") {
   else htmlData = html;
 
   htmlData = await processImages(htmlData, inputUrl)
-  htmlData = await processPdfs(htmlData, inputUrl);
   htmlData = await processCSSAndImages(htmlData, inputUrl);
   htmlData = await processJss(htmlData, inputUrl);
+  htmlData = await processPdfs(htmlData, inputUrl);
   
 
   // parsed = parser.parseFromString(htmlData, "text/html");
@@ -763,7 +769,7 @@ async function getLinks(inputUrl = currentPage) {
       absoluteUrl.includes("chrome-extension://" + extId) ||
       absoluteUrl.includes("chrome-extension://")
     )
-      absoluteUrl = getAbsolutePath(relative, inputUrl);
+      absoluteUrl = getAbsolutePath(relative, inputUrl).href;
 
     // Make sure that there are no instances of URL in our program
     if (absoluteUrl instanceof URL) continue;
