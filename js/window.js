@@ -518,7 +518,7 @@ async function processJss(htmlData, inputUrl) {
         !scriptSrc.startsWith("https://") &&
         !scriptSrc.startsWith("http://")
       ) {
-        scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
+        scriptSrc = getAbsolutePath(scriptSrc, inputUrl).href;
       }
 
       // Check for duplicate script URLs and skip them
@@ -529,8 +529,10 @@ async function processJss(htmlData, inputUrl) {
 
       // Store the data in script text
       getData(scriptSrc).then((data) => {
-        if (data !== "Failed")
+        if (data !== "Failed") {
           zip.file("js/" + getTitle(scriptSrc) + ".js", data);
+          console.log(`Javscript file added: ${getTitle(scriptSrc)}.js`);
+        }
       });
 
       // Set the CSS folder location for different depths
@@ -544,6 +546,8 @@ async function processJss(htmlData, inputUrl) {
       return match;
     }
   });
+
+  return htmlData;
 }
 
 /**
