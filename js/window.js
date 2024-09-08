@@ -426,6 +426,66 @@ async function processPdfs(htmlData, inputUrl) {
 }
 
 /**
+ * Processes to handle Image files
+ *
+ * @param {string} htmlData - The HTML content in which to find images.
+ * @param {string} inputUrl - The base URL of the HTML file to resolve relative paths.
+ * @returns {Promise<string>} - The modified HTML with updated image links
+ */
+async function processImages(htmlData, inputUrl) {
+    // Note that the Process for Images has Started
+    console.log("Processing Image Files");
+
+    // Regular expression to find all img tags
+    const imgTagRegex = /<img[^>]+src="([^">]+)"/g;
+  
+    // Process Images
+    htmlData = htmlData.replace( imgTagRegex, (match, p1) => {
+      try {
+        // Get the 'src' attribute from img
+        let imgSrc = p1;
+  
+        // Update the progress bar for depths
+        if (maxDepthValue === 0) zeroDepthCounterUpdate();
+  
+        // If src attribute is null or a base64 encoded image, skip this iteration
+        if (imgSrc === null || imgSrc.includes("base64")) return;
+  
+        // Extract the image name from the src URL and sanitize it
+        let imageName = imgSrc
+          .substring(imgSrc.lastIndexOf("/") + 1)
+          .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+  
+        // Check if the image is a duplicate if not storage that image name
+        if (!urlImages.includes(imageName)) {
+          // Store the image into the urlImages
+          urlImages.push(imageName);
+  
+          // Adjust the srcUrl to ensure it's an absolute URL
+          if (imgSrc.includes("//"))
+            imgSrc = "https:" + imgSrc.substring(imgSrc.indexOf("//"));
+          else imgSrc = getAbsolutePath(imgSrc, inputUrl);
+  
+          // Add the img file to the zip
+          zip.file("img/" + imageName, urlToPromise(imgSrc), { binary: true });
+        }
+  
+        // Image Location 
+        let imageFolderLocation = maxDepthValue === 0 ? "img/" : "../img/";
+  
+        // Return the modified img tag with the new src
+        return match.replace(p1, imageFolderLocation + imageName);
+        
+      } catch (error) {
+        console.error(error);
+        return match;
+      }
+    });
+    
+    return htmlData;
+}
+
+/**
  *
  * @param {*} inputUrl - The URL to be processed
  * @param {*} html - The HTML to be processed
@@ -436,55 +496,7 @@ async function processHTML(inputUrl, html = "") {
   if (html == "") htmlData = await getData(inputUrl);
   else htmlData = html;
 
-  // Note that the Process for Images has Started
-  console.log("Processing Images");
-
-  // Regular expression to find all img tags
-  const imgTagRegex = /<img[^>]+src="([^">]+)"/g;
-
-  // Process Images
-  htmlData = htmlData.replace( imgTagRegex, (match, p1) => {
-    try {
-      // Get the 'src' attribute from img
-      let imgSrc = p1;
-
-      // Update the progress bar for depths
-      if (maxDepthValue === 0) zeroDepthCounterUpdate();
-
-      // If src attribute is null or a base64 encoded image, skip this iteration
-      if (imgSrc === null || imgSrc.includes("base64")) return;
-
-      // Extract the image name from the src URL and sanitize it
-      let imageName = imgSrc
-        .substring(imgSrc.lastIndexOf("/") + 1)
-        .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
-
-      // Check if the image is a duplicate if not storage that image name
-      if (!urlImages.includes(imageName)) {
-        // Store the image into the urlImages
-        urlImages.push(imageName);
-
-        // Adjust the srcUrl to ensure it's an absolute URL
-        if (imgSrc.includes("//"))
-          imgSrc = "https:" + imgSrc.substring(imgSrc.indexOf("//"));
-        else imgSrc = getAbsolutePath(imgSrc, inputUrl);
-
-        // Add the img file to the zip
-        zip.file("img/" + imageName, urlToPromise(imgSrc), { binary: true });
-      }
-
-      // Image Location 
-      let imageFolderLocation = maxDepthValue === 0 ? "img/" : "../img/";
-
-      // Return the modified img tag with the new src
-      return match.replace(p1, imageFolderLocation + imageName);
-      
-    } catch (error) {
-      console.error(error);
-      return match;
-    }
-  });
-
+  htmlData = await processImages(htmlData, inputUrl)
   htmlData = await processPdfs(htmlData, inputUrl);
   htmlData = await processCSSAndImages(htmlData, inputUrl);
 
