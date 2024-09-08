@@ -486,20 +486,13 @@ async function processImages(htmlData, inputUrl) {
 }
 
 /**
+ * Processes to handle Javascript files
  *
- * @param {*} inputUrl - The URL to be processed
- * @param {*} html - The HTML to be processed
- * @returns
+ * @param {string} htmlData - The HTML content in which to find javascript files.
+ * @param {string} inputUrl - The base URL of the HTML file to resolve relative paths.
+ * @returns {Promise<string>} - The modified HTML with updated javscript srcs.
  */
-async function processHTML(inputUrl, html = "") {
-  // Get the HTML data for each page
-  if (html == "") htmlData = await getData(inputUrl);
-  else htmlData = html;
-
-  htmlData = await processImages(htmlData, inputUrl)
-  htmlData = await processPdfs(htmlData, inputUrl);
-  htmlData = await processCSSAndImages(htmlData, inputUrl);
-
+async function processJss(htmlData, inputUrl) {
   // Note that one is now Processing Javascript
   console.log("Processing Javascript Files");
 
@@ -521,9 +514,12 @@ async function processHTML(inputUrl, html = "") {
       }
 
       // If the src is relative, resolve it to an absolute URL
-      if (!scriptSrc.startsWith("https://") && !scriptSrc.startsWith("http://")) {
+      if (
+        !scriptSrc.startsWith("https://") &&
+        !scriptSrc.startsWith("http://")
+      ) {
         scriptSrc = getAbsolutePath(scriptSrc, inputUrl);
-      } 
+      }
 
       // Check for duplicate script URLs and skip them
       if (urlJSs.includes(scriptSrc)) return match;
@@ -548,6 +544,24 @@ async function processHTML(inputUrl, html = "") {
       return match;
     }
   });
+}
+
+/**
+ *
+ * @param {*} inputUrl - The URL to be processed
+ * @param {*} html - The HTML to be processed
+ * @returns
+ */
+async function processHTML(inputUrl, html = "") {
+  // Get the HTML data for each page
+  if (html == "") htmlData = await getData(inputUrl);
+  else htmlData = html;
+
+  htmlData = await processImages(htmlData, inputUrl)
+  htmlData = await processPdfs(htmlData, inputUrl);
+  htmlData = await processCSSAndImages(htmlData, inputUrl);
+  htmlData = await processJss(htmlData, inputUrl);
+  
 
   // parsed = parser.parseFromString(htmlData, "text/html");
 
