@@ -10,7 +10,9 @@ let getData = async (url) => {
   } catch (error) {
     console.error("Error:", error);
   }
-  return result;
+  return new Promise((resolve, reject) => {
+    resolve(result);
+  });
 };
 
 /**
@@ -44,21 +46,24 @@ function getTitle(url) {
   return url;
 }
 
+
 /**
- * Retrieves binary data from the specified URL.
+ * Retrieves the binary content of a file from a URL. This function is used to fetch image files
+ * from external URLs and convert them into a format suitable for adding to a zip archive.
  *
- * @param {string} url - The URL to retrieve data from.
- * @returns {Promise<BinaryType|string>} - A promise that resolves with the binary data or a failure message.
+ * @param {string} url - The URL from which to fetch binary content.
+ * @returns {Promise<Uint8Array|string>} - A promise that resolves with the binary content or rejects with an error message.
  */
 function urlToPromise(url) {
-  return new Promise((resolve) => {
-    JSZipUtils.getBinaryContent(url, (err, data) => {
-      if (err) {
-        resolve("Failed To Find Content");
-      } else {
-        resolve(data);
-      }
-    });
+  return new Promise((resolve, reject) => {
+      JSZipUtils.getBinaryContent(url, (err, data) => {
+          if (err) {
+              console.error(`Failed to fetch content from URL: ${url} - Error: ${err.message}`);
+              reject(`Failed To Fetch Content from ${url}`);
+          } else {
+              resolve(data);
+          }
+      });
   });
 }
 
