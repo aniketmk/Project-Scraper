@@ -480,63 +480,67 @@ async function processImages(htmlData, inputUrl) {
  * @returns {Promise<string>} - The modified HTML with updated javscript srcs.
  */
 async function processJss(htmlData, inputUrl) {
-  // Note that one is now Processing Javascript
-  console.log("Processing Javascript Files");
+  console.log("Processing JavaScript Files");
 
-  // Regular expression to match <script> tags with a src attribute
-  const scriptTagRegex = /<script[^>]+src=["']([^"']+)["']/g;
+  // Parse the HTML data using DOMParser
+  const parser = new DOMParser();
+  let doc = parser.parseFromString(htmlData, "text/html");
 
-  // Get all of the script elements from the parsed HTML
-  htmlData = htmlData.replace(scriptTagRegex, (match, p1) => {
+  // Process external <script> tags with a src attribute
+  const scriptElements = doc.querySelectorAll('script[src]');
+
+  for (let scriptElement of scriptElements) {
     try {
-      // Get the "src" attribute vaue of the current script element
-      let scriptSrc = p1;
+      let scriptSrc = scriptElement.getAttribute("src");
 
-      // Update the progress bar for zero depths
-      if (maxDepthValue == 0) zeroDepthCounterUpdate();
-
-      // Handle protocol-relative URLs (starting with "//")
-      if (scriptSrc.startsWith("//")) {
-        scriptSrc = "https:" + scriptSrc;
-      }
-
-      // If the src is relative, resolve it to an absolute URL
-      if (
-        !scriptSrc.startsWith("https://") &&
-        !scriptSrc.startsWith("http://")
-      ) {
+      // Convert to absolute URL if necessary
+      if (!scriptSrc.startsWith("https://") && !scriptSrc.startsWith("http://")) {
         scriptSrc = getAbsolutePath(scriptSrc, inputUrl).href;
       }
 
-      // Check for duplicate script URLs and skip them
-      if (urlJSs.includes(scriptSrc)) return match;
-
-      // Add the script URL to the tracking array
+      // Skip processing if JavaScript file has already been processed
+      if (urlJSs.includes(scriptSrc)) continue;
       urlJSs.push(scriptSrc);
 
+      // Fetch the JavaScript file data
+      const jsData = await getData(scriptSrc);
 
-      getData(scriptSrc).then((data) => {
-        if (data !== "Failed") {
-          zip.file("js/" + getTitle(scriptSrc) + ".js", data);
-          console.log(`Javascript file added: ${getTitle(scriptSrc)}.js`);
-        }
-      }).catch((err) => {
-        console.error(err);
-      });
+      if (jsData !== "Failed") {
+        // Add the JavaScript file to the zip
+        zip.file("js/" + getTitle(scriptSrc) + ".js", jsData);
 
-      // Set the CSS folder location for different depths
-      let jsFolderLocation = maxDepthValue === 0 ? "js/" : "../js/";
-
-      // Return the updated script tag with the local path for the script
-      return match.replace(p1, jsFolderLocation + getTitle(scriptSrc) + ".js");
-    } catch (err) {
-      // Log errors that occur during the fetching and zipping process
-      console.error(err);
-      return match;
+        // Update the <script> tag to point to the local JavaScript file
+        let jsFolderLocation = maxDepthValue === 0 ? "js/" : "../js/";
+        scriptElement.setAttribute("src", jsFolderLocation + getTitle(scriptSrc) + ".js");
+      } else {
+        console.error(`Failed to fetch JavaScript file: ${scriptSrc}`);
+      }
+    } catch (error) {
+      console.error(error);
     }
-  });
+  }
 
-  return htmlData;
+  // Optional: Process inline <script> tags (without src) if you need to handle them
+  const inlineScriptElements = doc.querySelectorAll('script:not([src])');
+  for (let inlineScript of inlineScriptElements) {
+    try {
+      // Process the inline script content if necessary
+      let scriptContent = inlineScript.textContent;
+      
+      // You can choose to process this content as needed (e.g., save it or manipulate it)
+      // For now, we leave it unchanged, but you can add logic here if needed.
+      
+      // Example: Save inline scripts to a file or perform other processing
+      // zip.file("js/inline-script-" + Date.now() + ".js", scriptContent);
+      
+      // Optionally leave inline scripts as is or modify them
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  // Return the updated HTML
+  return doc.documentElement.outerHTML;
 }
 
 /**
