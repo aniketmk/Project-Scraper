@@ -253,6 +253,8 @@ async function processCSSAndImages(htmlData, inputUrl) {
     try {
       let cssHref = linkElement.getAttribute("href");
 
+      if (maxDepthValue === 0) zeroDepthCounterUpdate();
+
       // Convert to absolute URL if necessary
       if (!cssHref.startsWith("https://") && !cssHref.startsWith("http://")) {
         cssHref = getAbsolutePath(cssHref, inputUrl).href;
@@ -385,6 +387,8 @@ async function processPdfs(htmlData, inputUrl) {
     try {
       let pdfHref = anchorElement.getAttribute("href");
 
+      if (maxDepthValue === 0) zeroDepthCounterUpdate();
+
       // Convert to absolute URL if necessary
       if (!pdfHref.startsWith("https://") && !pdfHref.startsWith("http://")) {
         pdfHref = getAbsolutePath(pdfHref, inputUrl).href;
@@ -489,6 +493,8 @@ async function processJss(htmlData, inputUrl) {
   // Parse the HTML data using DOMParser
   const parser = new DOMParser();
   let doc = parser.parseFromString(htmlData, "text/html");
+
+  if (maxDepthValue === 0) zeroDepthCounterUpdate();
 
   // Process external <script> tags with a src attribute
   const scriptElements = doc.querySelectorAll('script[src]');
