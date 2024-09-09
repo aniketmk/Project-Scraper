@@ -181,7 +181,7 @@ function zeroDepthCounterUpdate() {
     zeroDepthCounter++;
 
     const progressPercentage = calculateProgressPercentage(
-      zeroDepthCounter,
+      zeroDepthCounter + 1,
       totalZeroDepthCounter
     );
     document.getElementById("current-progress").innerText = progressPercentage;
@@ -428,56 +428,57 @@ async function processPdfs(htmlData, inputUrl) {
  * @returns {Promise<string>} - The modified HTML with updated image links
  */
 async function processImages(htmlData, inputUrl) {
-    // Note that the Process for Images has Started
-    console.log("Processing Image Files");
+  console.log("Processing Image Files");
 
-    // Regular expression to find all img tags
-    const imgTagRegex = /<img[^>]+src="([^">]+)"/g;
-  
-    // Process Images
-    htmlData = htmlData.replace( imgTagRegex, async (match, p1) => {
-      try {
-        // Get the 'src' attribute from img
-        let imgSrc = p1;
-  
-        // Update the progress bar for depths
-        if (maxDepthValue === 0) zeroDepthCounterUpdate();
-  
-        // If src attribute is null or a base64 encoded image, skip this iteration
-        if (imgSrc === null || imgSrc.includes("base64")) return;
-  
-        // Extract the image name from the src URL and sanitize it
-        let imageName = imgSrc
-          .substring(imgSrc.lastIndexOf("/") + 1)
-          .replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
-  
-        // Check if the image is a duplicate if not storage that image name
-        if (!urlImages.includes(imageName)) {
-          // Store the image into the urlImages
-          urlImages.push(imageName);
-  
-          // Adjust the srcUrl to ensure it's an absolute URL
-          if (imgSrc.includes("//"))
-            imgSrc = "https:" + imgSrc.substring(imgSrc.indexOf("//"));
-          else imgSrc = getAbsolutePath(imgSrc, inputUrl);
-  
-          // Add the img file to the zip
-          zip.file("img/" + imageName, urlToPromise(imgSrc), { binary: true });
-        }
-  
-        // Image Location 
-        let imageFolderLocation = maxDepthValue === 0 ? "img/" : "../img/";
-  
-        // Return the modified img tag with the new src
-        return match.replace(p1, imageFolderLocation + imageName);
-        
-      } catch (error) {
-        console.error(error);
-        return match;
+  // Parse the HTML data using DOMParser
+  const parser = new DOMParser();
+  let doc = parser.parseFromString(htmlData, "text/html");
+
+  // Select all <img> tags
+  const imgElements = doc.querySelectorAll('img');
+
+  for (let imgElement of imgElements) {
+    try {
+      let imgSrc = imgElement.getAttribute("src");
+
+      // Update the progress bar for zero depth
+      if (maxDepthValue === 0) zeroDepthCounterUpdate();
+
+      // If the src attribute is null or the image is a base64 encoded string, skip this iteration
+      if (imgSrc === null || imgSrc.includes("base64")) continue;
+
+      // Convert to absolute URL if necessary
+      if (!imgSrc.startsWith("https://") && !imgSrc.startsWith("http://")) {
+        imgSrc = getAbsolutePath(imgSrc, inputUrl).href;
       }
-    });
 
-    return htmlData;
+      // Extract the image name from the URL
+      let imageName = imgSrc.substring(imgSrc.lastIndexOf("/") + 1).replace(/[&\/\\#,+()$~%'":*?<>{}]/g, "");
+
+      // Check if the image has already been processed
+      if (!urlImages.includes(imageName)) {
+        urlImages.push(imageName);
+
+        // Fetch the image data
+        const imageData = await urlToPromise(imgSrc);
+
+        // Add the image to the zip file
+        zip.file("img/" + imageName, imageData, { binary: true });
+
+        console.log(`Image downloaded and added to zip: ${imgSrc}`);
+      }
+
+      // Update the <img> tag to point to the locally stored image
+      let imgFolderLocation = maxDepthValue === 0 ? "img/" : "../img/";
+      imgElement.setAttribute("src", imgFolderLocation + imageName);
+
+    } catch (error) {
+      console.error(`Error processing image: ${imgSrc}`, error);
+    }
+  }
+
+  // Return the updated HTML
+  return doc.documentElement.outerHTML;
 }
 
 /**
@@ -494,14 +495,14 @@ async function processJss(htmlData, inputUrl) {
   const parser = new DOMParser();
   let doc = parser.parseFromString(htmlData, "text/html");
 
-  if (maxDepthValue === 0) zeroDepthCounterUpdate();
-
   // Process external <script> tags with a src attribute
   const scriptElements = doc.querySelectorAll('script[src]');
 
   for (let scriptElement of scriptElements) {
     try {
       let scriptSrc = scriptElement.getAttribute("src");
+
+      if (maxDepthValue === 0) zeroDepthCounterUpdate();
 
       // Convert to absolute URL if necessary
       if (!scriptSrc.startsWith("https://") && !scriptSrc.startsWith("http://")) {
@@ -565,9 +566,9 @@ async function processHTML(inputUrl, html = "") {
   else htmlData = html;
 
   htmlData = await processImages(htmlData, inputUrl)
+  htmlData = await processPdfs(htmlData, inputUrl);
   htmlData = await processCSSAndImages(htmlData, inputUrl);
   htmlData = await processJss(htmlData, inputUrl);
-  htmlData = await processPdfs(htmlData, inputUrl);
   
 
   // parsed = parser.parseFromString(htmlData, "text/html");
