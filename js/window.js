@@ -372,44 +372,48 @@ async function processCSSImages(cssData, cssUrl) {
  * @returns {Promise<string>} - The modified HTML with updated PDF links
  */
 async function processPdfs(htmlData, inputUrl) {
-  // Note that one is processing PDFs has started
   console.log("Processing PDFs");
 
-  // Regular Expression for Processing PDfs
-  const pdfAnchorsRegex = /<a[^>]+href="([^">]+)"/g;
+  // Parse the HTML data using DOMParser
+  const parser = new DOMParser();
+  let doc = parser.parseFromString(htmlData, "text/html");
 
-  // Process PDFs
-  htmlData = htmlData.replace( pdfAnchorsRegex, (match, p1) => {
+  // Select all anchor tags that link to PDFs
+  const anchorElements = doc.querySelectorAll('a[href$=".pdf"]');
+
+  for (let anchorElement of anchorElements) {
     try {
-      // Absolute URL href
-      let absoluteUrl = p1;
+      let pdfHref = anchorElement.getAttribute("href");
 
-      console.log("PDF URL: ", absoluteUrl);
+      // Convert to absolute URL if necessary
+      if (!pdfHref.startsWith("https://") && !pdfHref.startsWith("http://")) {
+        pdfHref = getAbsolutePath(pdfHref, inputUrl).href;
+      }
 
-      // Update the progress bar for depths
-      if (maxDepthValue == 0) zeroDepthCounterUpdate();
+      // Skip processing if the PDF file has already been processed
+      if (urlPdfs.includes(pdfHref)) continue;
+      urlPdfs.push(pdfHref);
 
-      // Exclude an non-PDFs
-      if (!absoluteUrl.includes(".pdf")) return match;
+      // Fetch the PDF file data
+      const pdfData = await getData(pdfHref);
 
-      // Add the pdf to the zip folder
-      zip.file("pdf/" + getTitle(absoluteUrl), urlToPromise(absoluteUrl).href, {
-        binary: true,
-      });
+      if (pdfData !== "Failed") {
+        // Add the PDF to the zip file
+        zip.file("pdf/" + getTitle(pdfHref) + ".pdf", pdfData, { binary: true });
 
-      let pdfFolderLocation = maxDepthValue === 0 ? "pdf/" : "../pdf/";
-
-      // Set the href with the new local file location
-      return match.replace(p1, pdfFolderLocation + getTitle(absoluteUrl));
-
-      // Store the PDF
+        // Update the anchor tag to point to the local PDF file
+        let pdfFolderLocation = maxDepthValue === 0 ? "pdf/" : "../pdf/";
+        anchorElement.setAttribute("href", pdfFolderLocation + getTitle(pdfHref) + ".pdf");
+      } else {
+        console.error(`Failed to fetch PDF file: ${pdfHref}`);
+      }
     } catch (error) {
       console.error(error);
-      return match
     }
-  });
+  }
 
-  return htmlData;
+  // Return the updated HTML
+  return doc.documentElement.outerHTML;
 }
 
 /**
